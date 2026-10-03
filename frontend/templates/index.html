@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ИИ-помощник пациента // СберМедИИ</title>
+    <link rel="stylesheet" href="../static/css/style.css">
+</head>
+<body>
+    <div class="app-container">
+        <!-- Боковая панель со сценариями -->
+        <aside class="sidebar">
+            <div class="logo">
+                <h2>СберМедИИ</h2>
+                <span>ИИ-помощник пациента</span>
+            </div>
+            <nav class="scenarios-nav">
+                <h3>Сценарии работы</h3>
+                <button class="nav-btn active" data-scenario="anamnesis">Сбор жалоб и анамнеза</button>
+                <button class="nav-btn" data-scenario="appointment">Запись к врачу</button>
+                <button class="nav-btn" data-scenario="medications">Управление лекарствами</button>
+                <button class="nav-btn" data-scenario="monitoring">Мониторинг состояния</button>
+            </nav>
+        </aside>
+
+        <!-- Основная область чата -->
+        <main class="chat-main">
+            <header class="chat-header">
+                <h2 id="current-scenario-title">Предварительный сбор жалоб и анамнеза</h2>
+                <span class="status-badge">Online (152-ФЗ защищено)</span>
+            </header>
+
+            <div class="chat-messages" id="chatMessages">
+                <div class="message ai-message">
+                    Здравствуйте! Я медицинский ИИ-помощник. Расскажите, что вас беспокоит, какая температура или симптомы наблюдаются?
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="text" id="userInput" placeholder="Введите сообщение или опишите симптомы...">
+                <button id="sendBtn">Отправить</button>
+            </div>
+        </main>
+    </div>
+
+    <script src="../static/js/app.js"></script>
+</body>
+</html>
