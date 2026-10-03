@@ -3,44 +3,42 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ИИ-помощник пациента // СберМедИИ</title>
+    <title>ИИ-помощник пациента // СберМедИИ (Анализ диалога)</title>
     <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
     <div class="app-container">
-        <!-- Боковая панель со сценариями -->
-        <aside class="sidebar">
-            <div class="logo">
-                <h2>СберМедИИ</h2>
-                <span>ИИ-помощник пациента</span>
-            </div>
-            <nav class="scenarios-nav">
-                <h3>Сценарии работы</h3>
-                <button class="nav-btn active" data-scenario="anamnesis">Сбор жалоб и анамнеза</button>
-                <button class="nav-btn" data-scenario="appointment">Запись к врачу</button>
-                <button class="nav-btn" data-scenario="medications">Управление лекарствами</button>
-                <button class="nav-btn" data-scenario="monitoring">Мониторинг состояния</button>
-            </nav>
-        </aside>
-
         <!-- Основная область чата -->
         <main class="chat-main">
             <header class="chat-header">
-                <h2 id="current-scenario-title">Предварительный сбор жалоб и анамнеза</h2>
-                <span class="status-badge">Online (152-ФЗ защищено)</span>
+                <h2>Диалог с ИИ-помощником</h2>
+                <span class="status-badge">Режим: Сбор анамнеза</span>
             </header>
 
             <div class="chat-messages" id="chatMessages">
                 <div class="message ai-message">
-                    Здравствуйте! Я медицинский ИИ-помощник. Расскажите, что вас беспокоит, какая температура или симптомы наблюдаются?
+                    Здравствуйте! Опишите ваши симптомы или текущее состояние, а я проанализирую их для медицинской карты.
                 </div>
             </div>
 
             <div class="chat-input-area">
-                <input type="text" id="userInput" placeholder="Введите сообщение или опишите симптомы...">
+                <input type="text" id="userInput" placeholder="Например: температура 38.2, болит горло...">
                 <button id="sendBtn">Отправить</button>
             </div>
         </main>
+
+        <!-- Боковая панель с результатами анализа ИИ -->
+        <aside class="ai-sidebar">
+            <div class="sidebar-header">
+                <h3>Анализ ИИ в реальном времени</h3>
+                <span>Подтвержденные данные</span>
+            </div>
+            <div class="analysis-list" id="analysisList">
+                <div class="empty-analysis">
+                    Здесь появятся подтвержденные данные из вашего разговора с ИИ...
+                </div>
+            </div>
+        </aside>
     </div>
 
     <script src="../static/js/app.js"></script>

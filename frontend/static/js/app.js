@@ -2,53 +2,76 @@ document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('sendBtn');
     const userInput = document.getElementById('userInput');
     const chatMessages = document.getElementById('chatMessages');
-    const navButtons = document.querySelectorAll('.nav-btn');
-    const scenarioTitle = document.getElementById('current-scenario-title');
+    const analysisList = document.getElementById('analysisList');
 
-    // Переключение сценариев в сайдбаре
-    navButtons.forEach(btn => {
-        btn.addEventListener('click', () => {
-            navButtons.forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            scenarioTitle.textContent = btn.textContent;
+    function addMessage(text, sender) {
+        const msg = document.createElement('div');
+        msg.className = `message ${sender === 'user' ? 'user-message' : 'ai-message'}`;
+        msg.textContent = text;
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
 
-            // Очистка чата или смена контекста при необходимости
-            chatMessages.innerHTML = `
-                <div class="message ai-message">
-                    Выбран сценарий: "${btn.textContent}". Чем я могу помочь?
-                </div>
-            `;
-        });
-    });
-
-    // Функция отправки сообщения
-    function sendMessage() {
+    function handleUserSubmit() {
         const text = userInput.value.trim();
         if (!text) return;
 
         // Добавляем сообщение пользователя
-        const userMsg = document.createElement('div');
-        userMsg.className = 'message user-message';
-        userMsg.textContent = text;
-        chatMessages.appendChild(userMsg);
-
+        addMessage(text, 'user');
         userInput.value = '';
-        chatMessages.scrollTop = chatMessages.scrollHeight;
 
-        // Имитация ответа ИИ (здесь потом будет запрос к твоему FastAPI бэкенду)
+        // Имитация ответа ИИ с предложением анализа
         setTimeout(() => {
-            const aiMsg = document.createElement('div');
-            aiMsg.className = 'message ai-message';
-            aiMsg.textContent = 'Принято. Анализирую симптомы в соответствии с клиническими рекомендациями...';
-            chatMessages.appendChild(aiMsg);
+            const aiMsgContainer = document.createElement('div');
+            aiMsgContainer.className = 'message ai-message';
+
+            aiMsgContainer.innerHTML = `
+                <div>Ваш текст обработан: <b>«${text}»</b>.<br>Добавить этот пункт в структурированный анамнез?</div>
+                <div class="action-buttons">
+                    <button class="action-btn btn-yes">Да</button>
+                    <button class="action-btn btn-no">Нет</button>
+                </div>
+            `;
+
+            chatMessages.appendChild(aiMsgContainer);
             chatMessages.scrollTop = chatMessages.scrollHeight;
-        }, 1000);
+
+            // Обработка кликов по кнопкам Да / Нет
+            const btnYes = aiMsgContainer.querySelector('.btn-yes');
+            const btnNo = aiMsgContainer.querySelector('.btn-no');
+
+            btnYes.addEventListener('click', () => {
+                // Удаляем заглушку "пусто" если она первая
+                const emptyMsg = analysisList.querySelector('.empty-analysis');
+                if (emptyMsg) {
+                    emptyMsg.remove();
+                }
+
+                // Добавляем карточку в боковую панель анализа
+                const card = document.createElement('div');
+                card.className = 'analysis-card';
+                card.innerHTML = `
+                    <div class="analysis-card-title">Подтвержденный факт</div>
+                    <div class="analysis-card-text">${text}</div>
+                `;
+                analysisList.appendChild(card);
+                analysisList.scrollTop = analysisList.scrollHeight;
+
+                // Блокируем кнопки после выбора
+                aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#137333; font-weight:600;">✓ Добавлено в карту</span>';
+            });
+
+            btnNo.addEventListener('click', () => {
+                aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#5f6368;">✗ Отклонено</span>';
+            });
+
+        }, 800);
     }
 
-    sendBtn.addEventListener('click', sendMessage);
+    sendBtn.addEventListener('click', handleUserSubmit);
     userInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
-            sendMessage();
+            handleUserSubmit();
         }
     });
 });
