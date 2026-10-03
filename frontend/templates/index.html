@@ -3,40 +3,95 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ИИ-помощник пациента // СберМедИИ (Анализ диалога)</title>
+    <title>ИИ-помощник пациента // СберМедИИ</title>
     <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
     <div class="app-container">
-        <!-- Основная область чата -->
-        <main class="chat-main">
-            <header class="chat-header">
-                <h2>Диалог с ИИ-помощником</h2>
-                <span class="status-badge">Режим: Сбор анамнеза</span>
-            </header>
+        <!-- Навигация / Переключение режимов (Вкладки) -->
+        <aside class="sidebar-nav">
+            <div class="logo">
+                <h2>СберМедИИ</h2>
+                <span>Цифровой помощник</span>
+            </div>
+            <nav class="modes-menu">
+                <button class="mode-btn active" data-mode="chat">1. Сбор анамнеза</button>
+                <button class="mode-btn" data-mode="registry" id="navRegistry" disabled>2. Регистратура (Запись)</button>
+                <button class="mode-btn" data-mode="medications" id="navMeds" disabled>3. План лечения</button>
+            </nav>
+        </aside>
 
-            <div class="chat-messages" id="chatMessages">
-                <div class="message ai-message">
-                    Здравствуйте! Опишите ваши симптомы или текущее состояние, а я проанализирую их для медицинской карты.
+        <!-- Динамическая центральная область -->
+        <main class="main-content">
+            <!-- РЕЖИМ 1: ЧАТ И АНАМНЕЗ -->
+            <section class="app-section active-section" id="section-chat">
+                <header class="section-header">
+                    <h2>Сбор жалоб и анамнеза</h2>
+                    <span class="status-badge">Активный диалог</span>
+                </header>
+                <div class="chat-messages" id="chatMessages">
+                    <div class="message ai-message">
+                        Здравствуйте! Опишите ваше состояние или симптомы, чтобы я подготовил данные для врача.
+                    </div>
                 </div>
-            </div>
+                <div class="chat-input-area">
+                    <input type="text" id="userInput" placeholder="Например: держится температура 37.5, болит горло...">
+                    <button id="sendBtn">Отправить</button>
+                </div>
+            </section>
 
-            <div class="chat-input-area">
-                <input type="text" id="userInput" placeholder="Например: температура 38.2, болит горло...">
-                <button id="sendBtn">Отправить</button>
-            </div>
+            <!-- РЕЖИМ 2: РЕГИСТРАТУРА (ЗАПИСЬ) -->
+            <section class="app-section" id="section-registry">
+                <header class="section-header">
+                    <h2>Электронная регистратура (ЕМИАС)</h2>
+                    <span class="status-badge" style="background-color: #fef7e0; color: #b06000;">Маршрутизация</span>
+                </header>
+                <div class="registry-content">
+                    <div class="card-ticket">
+                        <h3>Направление к врачу-терапевту</h3>
+                        <p>На основе собранного анамнеза сформирован предварительный медицинский профиль для передачи в поликлинику.</p>
+                        <div class="ticket-details" id="ticketSummary">
+                            <!-- Сюда подтянутся симптомы из чата -->
+                        </div>
+                        <button class="primary-btn" id="confirmRegistryBtn">Подтвердить запись к врачу</button>
+                    </div>
+                </div>
+            </section>
+
+            <!-- РЕЖИМ 3: ПЛАН ЛЕЧЕНИЯ И ЛЕКАРСТВА -->
+            <section class="app-section" id="section-medications">
+                <header class="section-header">
+                    <h2>Управление приемом лекарств</h2>
+                    <span class="status-badge" style="background-color: #e6f4ea; color: #137333;">Пост-прием</span>
+                </header>
+                <div class="meds-content">
+                    <div class="card-ticket">
+                        <h3>План лечения по справке врача</h3>
+                        <p>ИИ проанализировал заключение врача и составил персональный график приема препаратов на сегодня:</p>
+                        <ul class="meds-list">
+                            <li>💊 <b>Ингавирин</b> — 1 капсула (утро) — <span style="color: #137333;">Принято</span></li>
+                            <li>💊 <b>Парацетамол</b> — при повышении температуры > 38.0</li>
+                            <li>💧 <b>Питьевой режим</b> — не менее 2л воды в день</li>
+                        </ul>
+                        <button class="secondary-btn" id="simUploadBtn">📁 Загрузить новое заключение врача</button>
+                    </div>
+                </div>
+            </section>
         </main>
 
-        <!-- Боковая панель с результатами анализа ИИ -->
+        <!-- Правая панель фиксации данных ИИ -->
         <aside class="ai-sidebar">
             <div class="sidebar-header">
-                <h3>Анализ ИИ в реальном времени</h3>
-                <span>Подтвержденные данные</span>
+                <h3>Медицинская карта ИИ</h3>
+                <span>Собранные факты</span>
             </div>
             <div class="analysis-list" id="analysisList">
                 <div class="empty-analysis">
-                    Здесь появятся подтвержденные данные из вашего разговора с ИИ...
+                    Здесь появятся подтвержденные симптомы для передачи врачу...
                 </div>
+            </div>
+            <div class="action-next-step" id="nextStepContainer" style="display: none;">
+                <button class="transition-btn" id="goToRegistryBtn">Перейти к записи к врачу ➔</button>
             </div>
         </aside>
     </div>
