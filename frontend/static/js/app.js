@@ -4,8 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const chatMessages = document.getElementById('chatMessages');
     const analysisList = document.getElementById('analysisList');
 
-    // Элементы навигации
-    const modeButtons = document.querySelectorAll('.mode-btn');
+    const menuButtons = document.querySelectorAll('.menu-btn');
     const sections = document.querySelectorAll('.app-section');
     const navRegistry = document.getElementById('navRegistry');
     const navMeds = document.getElementById('navMeds');
@@ -18,10 +17,10 @@ document.addEventListener('DOMContentLoaded', () => {
     let confirmedSymptoms = [];
 
     // Переключение режимов (вкладок)
-    modeButtons.forEach(btn => {
+    menuButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.disabled) return;
-            modeButtons.forEach(b => b.classList.remove('active'));
+            menuButtons.forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
 
             const targetMode = btn.dataset.mode;
@@ -56,15 +55,12 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     function addSymptomCard(text) {
-        const emptyMsg = analysisList.querySelector('.empty-analysis');
-        if (emptyMsg) emptyMsg.remove();
+        const placeholder = analysisList.querySelector('.journal-placeholder');
+        if (placeholder) placeholder.remove();
 
         const card = document.createElement('div');
-        card.className = 'analysis-card';
-        card.innerHTML = `
-            <div class="analysis-card-title">Жалоба пациента</div>
-            <div class="analysis-card-text">${escapeHtml(text)}</div>
-        `;
+        card.className = 'journal-card';
+        card.innerHTML = `<b>Жалоба:</b> ${escapeHtml(text)}`;
         analysisList.appendChild(card);
     }
 
@@ -75,7 +71,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     async function confirmSymptom(text, container) {
-        container.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#137333; font-weight:600;">✓ Зафиксировано</span>';
+        container.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#ffffff; font-weight:bold;">✓ Добавлено в журнал жалоб</span>';
         addSymptomCard(text);
         confirmedSymptoms.push({ question: currentQuestion, answer: text });
         nextStepContainer.style.display = 'block';
@@ -159,10 +155,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const aiMsgContainer = document.createElement('div');
             aiMsgContainer.className = 'message ai-message';
             aiMsgContainer.innerHTML = `
-                <div>Обнаружен симптом: <b>«${escapeHtml(text)}»</b>.<br>Добавить в медицинскую карту для врача?</div>
+                <div>Обработано: <b>«${escapeHtml(text)}»</b>.<br>Внести симптом в журнал жалоб?</div>
                 <div class="action-buttons">
-                    <button class="action-btn btn-yes">Да</button>
-                    <button class="action-btn btn-no">Нет</button>
+                    <button class="act-btn btn-yes">Да</button>
+                    <button class="act-btn btn-no">Нет</button>
                 </div>
             `;
             chatMessages.appendChild(aiMsgContainer);
@@ -171,7 +167,7 @@ document.addEventListener('DOMContentLoaded', () => {
             aiMsgContainer.querySelector('.btn-yes').addEventListener('click', () => confirmSymptom(text, aiMsgContainer));
 
             aiMsgContainer.querySelector('.btn-no').addEventListener('click', () => {
-                aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#5f6368;">✗ Пропущено</span>';
+                aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#e5e7eb;">✗ Отклонено</span>';
                 // Нет — задаём вопрос заново
                 addMessage(currentQuestion || 'Опишите ваше состояние или симптомы.', 'ai');
             });
@@ -183,26 +179,21 @@ document.addEventListener('DOMContentLoaded', () => {
         if (e.key === 'Enter') handleUserSubmit();
     });
 
-    // Переход в режим Регистратуры
     goToRegistryBtn.addEventListener('click', () => {
         navRegistry.disabled = false;
-        navRegistry.click(); // Переключаем вкладку
-
-        // Заполняем данные талона
-        ticketSummary.innerHTML = `<b>Симптомы для терапевта:</b><br>` + confirmedSymptoms.map(s =>
+        navRegistry.click();
+        ticketSummary.innerHTML = `<b>Собранные данные для протокола:</b><br>` + confirmedSymptoms.map(s =>
             `<div style="margin-top:8px;"><span style="color:#5f6368;">Вопрос ИИ: ${escapeHtml(s.question)}</span><br>• ${escapeHtml(s.answer)}</div>`
         ).join('');
     });
 
-    // Подтверждение записи в регистратуре -> разблокировка плана лечения
     confirmRegistryBtn.addEventListener('click', () => {
-        alert('Запись успешно подтверждена! Направление передано в ЕМИАС.');
+        alert('Данные успешно переданы в защищенный контур ЕМИАС!');
         navMeds.disabled = false;
-        navMeds.click(); // Переключаем на план лечения
+        navMeds.click();
     });
 
-    // Симуляция загрузки справки врача
     simUploadBtn.addEventListener('click', () => {
-        alert('Заключение врача успешно получено из электронной медкарты! План приема лекарств обновлен.');
+        alert('Справка успешно обработана OCR-модулем. Календарь приема обновлен.');
     });
 });

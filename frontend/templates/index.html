@@ -3,95 +3,77 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ИИ-помощник пациента // СберМедИИ</title>
+    <title>ХелпИнатор // ИИ-помощник пациента</title>
     <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ С НАЗВАНИЕМ ПРОЕКТА -->
+    <header class="top-header">
+        <h1>ХелпИнатор</h1>
+    </header>
+
     <div class="app-container">
-        <!-- Навигация / Переключение режимов (Вкладки) -->
-        <aside class="sidebar-nav">
-            <div class="logo">
-                <h2>СберМедИИ</h2>
-                <span>Цифровой помощник</span>
+        <!-- ЛЕВАЯ ПАНЕЛЬ (Профиль и навигация) -->
+        <aside class="left-sidebar">
+            <div class="user-profile">
+                <div class="avatar-circle"></div>
+                <div class="welcome-text">Добро пожаловать,<br><b>Вито Скаллето</b></div>
             </div>
-            <nav class="modes-menu">
-                <button class="mode-btn active" data-mode="chat">1. Сбор анамнеза</button>
-                <button class="mode-btn" data-mode="registry" id="navRegistry" disabled>2. Регистратура (Запись)</button>
-                <button class="mode-btn" data-mode="medications" id="navMeds" disabled>3. План лечения</button>
+
+            <nav class="nav-menu">
+                <button class="menu-btn active" data-mode="chat">ПЕРВИЧНЫЙ АНАМНЕЗ</button>
+                <button class="menu-btn" data-mode="registry" id="navRegistry" disabled>ЗАГРУЗКА ПРОТОКОЛОВ И РЕЦЕПТОВ</button>
+                <button class="menu-btn" data-mode="medications" id="navMeds" disabled>КАЛЕНДАРЬ</button>
             </nav>
         </aside>
 
-        <!-- Динамическая центральная область -->
-        <main class="main-content">
-            <!-- РЕЖИМ 1: ЧАТ И АНАМНЕЗ -->
+        <!-- ЦЕНТРАЛЬНАЯ ОБЛАСТЬ (Чат и разделы) -->
+        <main class="center-content">
+            <!-- РЕЖИМ 1: ЧАТ -->
             <section class="app-section active-section" id="section-chat">
-                <header class="section-header">
-                    <h2>Сбор жалоб и анамнеза</h2>
-                    <span class="status-badge">Активный диалог</span>
-                </header>
                 <div class="chat-messages" id="chatMessages">
                     <div class="message ai-message">
-                        Здравствуйте! Опишите ваше состояние или симптомы, чтобы я подготовил данные для врача.
+                        ВОПРОС/ОТВЕТ ИИ: Опишите ваше состояние, а я сформирую медицинский протокол.
                     </div>
                 </div>
+
                 <div class="chat-input-area">
-                    <input type="text" id="userInput" placeholder="Например: держится температура 37.5, болит горло...">
+                    <input type="text" id="userInput" placeholder="Опишите что вас беспокоит?">
                     <button id="sendBtn">Отправить</button>
                 </div>
             </section>
 
-            <!-- РЕЖИМ 2: РЕГИСТРАТУРА (ЗАПИСЬ) -->
+            <!-- РЕЖИМ 2: ПРОТОКОЛЫ И РЕЦЕПТЫ -->
             <section class="app-section" id="section-registry">
-                <header class="section-header">
-                    <h2>Электронная регистратура (ЕМИАС)</h2>
-                    <span class="status-badge" style="background-color: #fef7e0; color: #b06000;">Маршрутизация</span>
-                </header>
-                <div class="registry-content">
-                    <div class="card-ticket">
-                        <h3>Направление к врачу-терапевту</h3>
-                        <p>На основе собранного анамнеза сформирован предварительный медицинский профиль для передачи в поликлинику.</p>
-                        <div class="ticket-details" id="ticketSummary">
-                            <!-- Сюда подтянутся симптомы из чата -->
-                        </div>
-                        <button class="primary-btn" id="confirmRegistryBtn">Подтвердить запись к врачу</button>
-                    </div>
+                <div class="section-card">
+                    <h2>Загрузка протоколов и рецептов</h2>
+                    <p>На основе собранного анамнеза сформировано направление в ЕМИАС.</p>
+                    <div class="ticket-preview" id="ticketSummary"></div>
+                    <button class="action-btn-main" id="confirmRegistryBtn">Подтвердить передачу данных</button>
                 </div>
             </section>
 
-            <!-- РЕЖИМ 3: ПЛАН ЛЕЧЕНИЯ И ЛЕКАРСТВА -->
+            <!-- РЕЖИМ 3: КАЛЕНДАРЬ -->
             <section class="app-section" id="section-medications">
-                <header class="section-header">
-                    <h2>Управление приемом лекарств</h2>
-                    <span class="status-badge" style="background-color: #e6f4ea; color: #137333;">Пост-прием</span>
-                </header>
-                <div class="meds-content">
-                    <div class="card-ticket">
-                        <h3>План лечения по справке врача</h3>
-                        <p>ИИ проанализировал заключение врача и составил персональный график приема препаратов на сегодня:</p>
-                        <ul class="meds-list">
-                            <li>💊 <b>Ингавирин</b> — 1 капсула (утро) — <span style="color: #137333;">Принято</span></li>
-                            <li>💊 <b>Парацетамол</b> — при повышении температуры > 38.0</li>
-                            <li>💧 <b>Питьевой режим</b> — не менее 2л воды в день</li>
-                        </ul>
-                        <button class="secondary-btn" id="simUploadBtn">📁 Загрузить новое заключение врача</button>
-                    </div>
+                <div class="section-card">
+                    <h2>Календарь приема препаратов</h2>
+                    <ul class="med-schedule-list">
+                        <li>💊 <b>Препарат по назначению</b> — Утро (Принято)</li>
+                        <li>💧 <b>Питьевой режим</b> — В течение дня</li>
+                    </ul>
+                    <button class="action-btn-sec" id="simUploadBtn">📁 Загрузить справку (OCR)</button>
                 </div>
             </section>
         </main>
 
-        <!-- Правая панель фиксации данных ИИ -->
-        <aside class="ai-sidebar">
-            <div class="sidebar-header">
-                <h3>Медицинская карта ИИ</h3>
-                <span>Собранные факты</span>
+        <!-- ПРАВАЯ ПАНЕЛЬ: ЖУРНАЛ ЖАЛОБ -->
+        <aside class="right-sidebar">
+            <h3>ЖУРНАЛ ЖАЛОБ</h3>
+            <div class="journal-list" id="analysisList">
+                <div class="journal-placeholder">Здесь фиксируются симптомы...</div>
             </div>
-            <div class="analysis-list" id="analysisList">
-                <div class="empty-analysis">
-                    Здесь появятся подтвержденные симптомы для передачи врачу...
-                </div>
-            </div>
-            <div class="action-next-step" id="nextStepContainer" style="display: none;">
-                <button class="transition-btn" id="goToRegistryBtn">Перейти к записи к врачу ➔</button>
+            <div class="journal-footer" id="nextStepContainer" style="display: none;">
+                <button class="transition-btn" id="goToRegistryBtn">К протоколам ➔</button>
             </div>
         </aside>
     </div>
