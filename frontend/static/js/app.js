@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', () => {
     async function confirmSymptom(text, container) {
         container.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#137333; font-weight:600;">✓ Зафиксировано</span>';
         addSymptomCard(text);
-        confirmedSymptoms.push(text);
+        confirmedSymptoms.push({ question: currentQuestion, answer: text });
         nextStepContainer.style.display = 'block';
 
         setBusy(true);
@@ -146,7 +146,9 @@ document.addEventListener('DOMContentLoaded', () => {
         navRegistry.click(); // Переключаем вкладку
 
         // Заполняем данные талона
-        ticketSummary.innerHTML = `<b>Симптомы для терапевта:</b><br>` + confirmedSymptoms.map(s => `• ${s}`).join('<br>');
+        ticketSummary.innerHTML = `<b>Симптомы для терапевта:</b><br>` + confirmedSymptoms.map(s =>
+            `<div style="margin-top:8px;"><span style="color:#5f6368;">Вопрос ИИ: ${escapeHtml(s.question)}</span><br>• ${escapeHtml(s.answer)}</div>`
+        ).join('');
     });
 
     // Подтверждение записи в регистратуре -> разблокировка плана лечения
