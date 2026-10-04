@@ -285,6 +285,17 @@ body {
 .transition-btn:hover, .action-btn-main:hover { background-color: #145f88; }
 .transition-btn:active, .action-btn-main:active { background-color: #0e4869; }
 
+.download-btn {
+    display: block;
+    box-sizing: border-box;
+    margin-top: 10px;
+    text-align: center;
+    text-decoration: none;
+    background-color: #1e8e3e;
+}
+.download-btn:hover { background-color: #137333; }
+.download-btn:active { background-color: #0d5c28; }
+
 /* Дополнительные карточки */
 .section-card {
     background: #bbf3e2;
