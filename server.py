@@ -15,7 +15,6 @@ app = FastAPI()
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
 COMPLAINTS_FILE = Path(__file__).parent / "complaints.json"
-MAX_COMPLAINTS = 3
 
 _lock = Lock()
 
@@ -139,19 +138,14 @@ def reset():
 
 @app.post("/api/complaints")
 def add_complaint(c: Complaint):
-    """Логирует подтверждённую жалобу в JSON и, пока их меньше трёх, просит модель задать следующий вопрос."""
+    """Логирует подтверждённую жалобу в JSON и просит модель задать следующий уточняющий вопрос."""
     with _lock:
         items = _load()
-        if len(items) < MAX_COMPLAINTS:
-            items.append({"n": len(items) + 1, "question": c.question, "complaint": c.text})
-            _save(items)
-
-    done = len(items) >= MAX_COMPLAINTS
-    if done:
-        return {"count": len(items), "done": True, "question": None}
+        items.append({"n": len(items) + 1, "question": c.question, "complaint": c.text})
+        _save(items)
 
     try:
         question = ask_model(items)
     except Exception as e:
-        return {"count": len(items), "done": False, "question": None, "error": f"Модель недоступна: {e}"}
-    return {"count": len(items), "done": False, "question": question}
+        return {"count": len(items), "question": None, "error": f"Модель недоступна: {e}"}
+    return {"count": len(items), "question": question}

@@ -216,6 +216,11 @@ body {
     cursor: pointer;
     transition: background 0.2s;
 }
+.chat-input-area .finish-btn { background-color: #1e8e3e; }
+.chat-input-area .finish-btn:hover { background-color: #137333; }
+.chat-input-area .finish-btn:active { background-color: #0d5c28; }
+.chat-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+
 .chat-input-area button:hover { background-color: #145f88; }
 .chat-input-area button:active { background-color: #0e4869; }
 

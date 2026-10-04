@@ -1,5 +1,6 @@
 document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('sendBtn');
+    const finishBtn = document.getElementById('finishBtn');
     const userInput = document.getElementById('userInput');
     const chatMessages = document.getElementById('chatMessages');
     const analysisList = document.getElementById('analysisList');
@@ -67,8 +68,20 @@ document.addEventListener('DOMContentLoaded', () => {
     function setBusy(v) {
         busy = v;
         sendBtn.disabled = v || finished;
+        finishBtn.disabled = v || finished;
         userInput.disabled = v || finished;
     }
+
+    finishBtn.addEventListener('click', () => {
+        if (busy || finished) return;
+        if (confirmedSymptoms.length === 0) {
+            addMessage('Пока нет ни одной подтверждённой жалобы. Опишите, что вас беспокоит.', 'ai');
+            return;
+        }
+        finished = true;
+        setBusy(false);
+        addMessage('Спасибо! Я собрал информацию для врача. Нажмите «Перейти к записи к врачу» справа.', 'ai');
+    });
 
     async function confirmSymptom(text, container) {
         container.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#ffffff; font-weight:bold;">✓ Добавлено в журнал жалоб</span>';
@@ -85,10 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             const data = await resp.json();
 
-            if (data.done) {
-                finished = true;
-                addMessage('Спасибо! Я собрал достаточно информации для врача. Переходите к записи.', 'ai');
-            } else if (data.question) {
+            if (data.question) {
                 currentQuestion = data.question;
                 addMessage(data.question, 'ai');
             } else {
@@ -116,6 +126,7 @@ document.addEventListener('DOMContentLoaded', () => {
     function showEmergency() {
         finished = true;
         sendBtn.disabled = true;
+        finishBtn.disabled = true;
         userInput.disabled = true;
         userInput.placeholder = 'Диалог остановлен. Позвоните 112 или 103.';
         const msg = document.createElement('div');
