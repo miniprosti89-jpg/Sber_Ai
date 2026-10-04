@@ -42,9 +42,72 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
+    let currentQuestion = 'Опишите ваше состояние или симптомы.';   // последний вопрос ИИ
+    let finished = false;
+    let busy = false;
+
+    // Новая сессия — чистим json с жалобами
+    fetch('/api/reset', { method: 'POST' }).catch(() => {});
+
+    function escapeHtml(str) {
+        const d = document.createElement('div');
+        d.textContent = str;
+        return d.innerHTML;
+    }
+
+    function addSymptomCard(text) {
+        const emptyMsg = analysisList.querySelector('.empty-analysis');
+        if (emptyMsg) emptyMsg.remove();
+
+        const card = document.createElement('div');
+        card.className = 'analysis-card';
+        card.innerHTML = `
+            <div class="analysis-card-title">Жалоба пациента</div>
+            <div class="analysis-card-text">${escapeHtml(text)}</div>
+        `;
+        analysisList.appendChild(card);
+    }
+
+    function setBusy(v) {
+        busy = v;
+        sendBtn.disabled = v || finished;
+        userInput.disabled = v || finished;
+    }
+
+    async function confirmSymptom(text, container) {
+        container.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#137333; font-weight:600;">✓ Зафиксировано</span>';
+        addSymptomCard(text);
+        confirmedSymptoms.push(text);
+        nextStepContainer.style.display = 'block';
+
+        setBusy(true);
+        try {
+            const resp = await fetch('/api/complaints', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text, question: currentQuestion })
+            });
+            const data = await resp.json();
+
+            if (data.done) {
+                finished = true;
+                addMessage('Спасибо! Я собрал достаточно информации для врача. Переходите к записи.', 'ai');
+            } else if (data.question) {
+                currentQuestion = data.question;
+                addMessage(data.question, 'ai');
+            } else {
+                addMessage(data.error || 'Не удалось получить уточняющий вопрос.', 'ai');
+            }
+        } catch (e) {
+            addMessage('Ошибка связи с сервером.', 'ai');
+        }
+        setBusy(false);
+        if (!finished) userInput.focus();
+    }
+
     function handleUserSubmit() {
         const text = userInput.value.trim();
-        if (!text) return;
+        if (!text || busy || finished) return;
 
         addMessage(text, 'user');
         userInput.value = '';
@@ -53,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
             const aiMsgContainer = document.createElement('div');
             aiMsgContainer.className = 'message ai-message';
             aiMsgContainer.innerHTML = `
-                <div>Обнаружен симптом: <b>«${text}»</b>.<br>Добавить в медицинскую карту для врача?</div>
+                <div>Обнаружен симптом: <b>«${escapeHtml(text)}»</b>.<br>Добавить в медицинскую карту для врача?</div>
                 <div class="action-buttons">
                     <button class="action-btn btn-yes">Да</button>
                     <button class="action-btn btn-no">Нет</button>
@@ -62,34 +125,14 @@ document.addEventListener('DOMContentLoaded', () => {
             chatMessages.appendChild(aiMsgContainer);
             chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            const btnYes = aiMsgContainer.querySelector('.btn-yes');
-            const btnNo = aiMsgContainer.querySelector('.btn-no');
+            aiMsgContainer.querySelector('.btn-yes').addEventListener('click', () => confirmSymptom(text, aiMsgContainer));
 
-            btnYes.addEventListener('click', () => {
-                const emptyMsg = analysisList.querySelector('.empty-analysis');
-                if (emptyMsg) emptyMsg.remove();
-
-                const card = document.createElement('div');
-                card.className = 'analysis-card';
-                card.innerHTML = `
-                    <div class="analysis-card-title">Жалоба пациента</div>
-                    <div class="analysis-card-text">${text}</div>
-                `;
-                analysisList.appendChild(card);
-
-                confirmedSymptoms.push(text);
-
-                // Показываем кнопку перехода к регистрации после добавления хотя бы одного симптома
-                nextStepContainer.style.display = 'block';
-
-                aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#137333; font-weight:600;">✓ Зафиксировано</span>';
-            });
-
-            btnNo.addEventListener('click', () => {
+            aiMsgContainer.querySelector('.btn-no').addEventListener('click', () => {
                 aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:12px; color:#5f6368;">✗ Пропущено</span>';
+                // Нет — задаём вопрос заново
+                addMessage(currentQuestion || 'Опишите ваше состояние или симптомы.', 'ai');
             });
-
-        }, 800);
+        }, 400);
     }
 
     sendBtn.addEventListener('click', handleUserSubmit);
