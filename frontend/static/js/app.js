@@ -105,12 +105,55 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!finished) userInput.focus();
     }
 
-    function handleUserSubmit() {
+    const EMERGENCY_HTML = `
+        <div style="color:#b3261e; font-weight:700; font-size:16px;">⚠️ Это может быть неотложное состояние!</div>
+        <div style="margin-top:8px;">Прекратите общение с ассистентом и <b>срочно позвоните в скорую помощь</b>.
+        Не ждите записи к врачу и не пытайтесь добраться самостоятельно.</div>
+        <div style="margin-top:10px; line-height:1.7;">
+            📞 <b>112</b> — единый номер экстренных служб<br>
+            📞 <b>103</b> — скорая медицинская помощь<br>
+            📞 <b>8-800-100-01-12</b> — телефон для звонков с мобильных, если 112 недоступен
+        </div>
+        <div style="margin-top:10px;">Назовите диспетчеру адрес и опишите, что с вами происходит.</div>
+    `;
+
+    function showEmergency() {
+        finished = true;
+        sendBtn.disabled = true;
+        userInput.disabled = true;
+        userInput.placeholder = 'Диалог остановлен. Позвоните 112 или 103.';
+        const msg = document.createElement('div');
+        msg.className = 'message ai-message';
+        msg.style.border = '2px solid #b3261e';
+        msg.innerHTML = EMERGENCY_HTML;
+        chatMessages.appendChild(msg);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    async function handleUserSubmit() {
         const text = userInput.value.trim();
         if (!text || busy || finished) return;
 
         addMessage(text, 'user');
         userInput.value = '';
+
+        // Проверка на экстренное состояние до любых вопросов
+        setBusy(true);
+        let emergency = false;
+        try {
+            const r = await fetch('/api/triage', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            emergency = (await r.json()).emergency === true;
+        } catch (e) { /* сервер недоступен — продолжаем обычный диалог */ }
+        setBusy(false);
+
+        if (emergency) {
+            showEmergency();
+            return;
+        }
 
         setTimeout(() => {
             const aiMsgContainer = document.createElement('div');

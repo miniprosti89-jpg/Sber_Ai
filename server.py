@@ -1,5 +1,6 @@
 import json
 import os
+import re
 import urllib.request
 from pathlib import Path
 from threading import Lock
@@ -64,6 +65,64 @@ def ask_model(complaints: list) -> str:
     )
     with urllib.request.urlopen(req, timeout=120) as resp:
         return json.loads(resp.read().decode("utf-8"))["message"]["content"].strip()
+
+
+# Страховка: явные признаки неотложных состояний ловятся правилами, даже если модель недоступна или ошиблась
+EMERGENCY_PATTERNS = [
+    r"боль\w* (в|за) (груди|грудин)", r"давит (в|за) (груди|грудин)", r"сердечн\w+ приступ", r"инфаркт",
+    r"инсульт", r"перекосил[оа]? (лицо|рот)", r"(онемел|отнял)\w* (рука|нога|половина|лицо|лиц)",
+    r"не могу (говорить|дышать|вдохнуть)", r"задыха\w+", r"нечем дышать", r"удуш",
+    r"потерял\w* сознание", r"без сознания", r"обморок", r"судорог",
+    r"сильн\w+ кровотечени", r"кровь не останавливается", r"кашляю кровью", r"рвота кровью",
+    r"анафилакт", r"отёк\w* (горла|языка|гортани)", r"отек\w* (горла|языка|гортани)",
+    r"отравил", r"хочу умереть", r"покончить с собой", r"суицид",
+]
+_emergency_re = re.compile("|".join(EMERGENCY_PATTERNS), re.IGNORECASE)
+
+TRIAGE_PROMPT = (
+    "Ты определяешь, описывает ли пациент ЭКСТРЕННОЕ, угрожающее жизни состояние, при котором нужно "
+    "немедленно вызывать скорую: острая боль или давление в груди, признаки инсульта (перекос лица, "
+    "онемение руки или ноги, нарушение речи, внезапная сильная головная боль), тяжёлое удушье, потеря "
+    "сознания, судороги, сильное кровотечение, анафилаксия, отравление, суицидальные намерения. "
+    "Обычные симптомы (насморк, больное горло, умеренная температура, лёгкая головная боль, кашель) "
+    "НЕ являются экстренными. Ответь JSON: {\"emergency\": true} или {\"emergency\": false}."
+)
+
+
+class Text(BaseModel):
+    text: str
+
+
+def llm_is_emergency(text: str) -> bool:
+    payload = {
+        "model": OLLAMA_MODEL,
+        "stream": False,
+        "format": {"type": "object", "properties": {"emergency": {"type": "boolean"}}, "required": ["emergency"]},
+        "options": {"temperature": 0},
+        "messages": [
+            {"role": "system", "content": TRIAGE_PROMPT},
+            {"role": "user", "content": text},
+        ],
+    }
+    req = urllib.request.Request(
+        OLLAMA_URL, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}
+    )
+    with urllib.request.urlopen(req, timeout=60) as resp:
+        content = json.loads(resp.read().decode("utf-8"))["message"]["content"]
+    return bool(json.loads(content).get("emergency"))
+
+
+@app.post("/api/triage")
+def triage(t: Text):
+    """Экстренное ли состояние: правила + нейросеть. При недоступности модели работают только правила."""
+    if _emergency_re.search(t.text):
+        return {"emergency": True, "source": "rules"}
+    try:
+        if llm_is_emergency(t.text):
+            return {"emergency": True, "source": "llm"}
+    except Exception:
+        pass
+    return {"emergency": False}
 
 
 @app.get("/")
