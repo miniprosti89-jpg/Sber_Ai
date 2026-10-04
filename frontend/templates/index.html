@@ -7,13 +7,19 @@
     <link rel="stylesheet" href="../static/css/style.css">
 </head>
 <body>
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ С НАЗВАНИЕМ ПРОЕКТА -->
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ С НАЗВАНИЕМ ПРОЕКТА И СВЕТОФОРОМ ТРИАЖА -->
     <header class="top-header">
         <h1>ХелпИнатор</h1>
+
+        <!-- СВЕТОФОР ТРИАЖА -->
+        <div class="triage-status-badge triage-green" id="triageBadge">
+            <span class="status-dot"></span>
+            <span id="triageText">Состояние: Плановый визит</span>
+        </div>
     </header>
 
     <div class="app-container">
-        <!-- ЛЕВАЯ ПАНЕЛЬ (Профиль и навигация) -->
+        <!-- ЛЕВАЯ ПАНЕЛЬ -->
         <aside class="left-sidebar">
             <div class="user-profile">
                 <div class="avatar-circle"></div>
@@ -22,48 +28,66 @@
 
             <nav class="nav-menu">
                 <button class="menu-btn active" data-mode="chat">ПЕРВИЧНЫЙ АНАМНЕЗ</button>
-                <button class="menu-btn" data-mode="registry" id="navRegistry" disabled>ЗАГРУЗКА ПРОТОКОЛОВ И РЕЦЕПТОВ</button>
-                <button class="menu-btn" data-mode="medications" id="navMeds" disabled>КАЛЕНДАРЬ</button>
+                <button class="menu-btn" data-mode="registry" id="navRegistry" disabled>ПРОТОКОЛ ЕМИАС</button>
+                <button class="menu-btn" data-mode="medications" id="navMeds">КАЛЕНДАРЬ И OCR</button>
             </nav>
         </aside>
 
-        <!-- ЦЕНТРАЛЬНАЯ ОБЛАСТЬ (Чат и разделы) -->
+        <!-- ЦЕНТРАЛЬНАЯ ОБЛАСТЬ -->
         <main class="center-content">
             <!-- РЕЖИМ 1: ЧАТ -->
             <section class="app-section active-section" id="section-chat">
                 <div class="chat-messages" id="chatMessages">
                     <div class="message ai-message">
-                        ВОПРОС/ОТВЕТ ИИ: Опишите ваше состояние, а я сформирую медицинский протокол.
+                        Здравствуйте! Я ИИ-помощник ЕМИАС. Опишите ваши симптомы, и я сформирую первичный анамнез для терапевта.
                     </div>
                 </div>
 
                 <div class="chat-input-area">
-                    <input type="text" id="userInput" placeholder="Опишите что вас беспокоит?">
+                    <input type="text" id="userInput" placeholder="Опишите, что вас беспокоит...">
+
+                    <!-- ГОЛОСОВОЙ ВВОД -->
+                    <button id="micBtn" class="mic-btn" title="Голосовой ввод">🎤</button>
                     <button id="sendBtn">Отправить</button>
-                    <button id="finishBtn" class="finish-btn">Это всё</button>
                 </div>
             </section>
 
-            <!-- РЕЖИМ 2: ПРОТОКОЛЫ И РЕЦЕПТЫ -->
+            <!-- РЕЖИМ 2: ПРОТОКОЛ ЕМИАС (SOAP) -->
             <section class="app-section" id="section-registry">
                 <div class="section-card">
-                    <h2>Загрузка протоколов и рецептов</h2>
-                    <p>На основе собранного анамнеза сформировано направление в ЕМИАС.</p>
-                    <div class="ticket-preview" id="ticketSummary"></div>
-                    <button class="action-btn-main" id="confirmRegistryBtn">Подтвердить передачу данных</button>
-                    <a class="action-btn-main download-btn" id="downloadPdfBtn" href="/api/protocol.pdf" download="protocol.pdf">📄 Скачать протокол (PDF)</a>
+                    <h2>Сформированный протокол ЕМИАС (SOAP)</h2>
+                    <p>На основе анамнеза сформирована структурированная карта для врача.</p>
+
+                    <div class="soap-container" id="soapPreview">
+                        <div class="soap-block"><b>[S] Subjective:</b> <span id="soapS">Загрузка...</span></div>
+                        <div class="soap-block"><b>[O] Objective:</b> <span id="soapO">Загрузка...</span></div>
+                        <div class="soap-block"><b>[A] Assessment:</b> <span id="soapA">Загрузка...</span></div>
+                        <div class="soap-block"><b>[P] Plan:</b> <span id="soapP">Загрузка...</span></div>
+                    </div>
+
+                    <div class="action-row">
+                        <button class="action-btn-main" id="confirmRegistryBtn">Подтвердить передачу в ЕМИАС</button>
+                        <a href="/api/protocol.pdf" target="_blank" class="download-pdf-btn">📄 Скачать PDF-протокол</a>
+                    </div>
                 </div>
             </section>
 
-            <!-- РЕЖИМ 3: КАЛЕНДАРЬ -->
+            <!-- РЕЖИМ 3: КАЛЕНДАРЬ И OCR -->
             <section class="app-section" id="section-medications">
                 <div class="section-card">
                     <h2>Календарь приема препаратов</h2>
-                    <ul class="med-schedule-list">
-                        <li>💊 <b>Препарат по назначению</b> — Утро (Принято)</li>
+                    <ul class="med-schedule-list" id="medList">
+                        <li>💊 <b>Терафлю</b> — Вечер (Принято)</li>
                         <li>💧 <b>Питьевой режим</b> — В течение дня</li>
                     </ul>
-                    <button class="action-btn-sec" id="simUploadBtn">📁 Загрузить справку (OCR)</button>
+
+                    <!-- OCR НАЗНАЧЕНИЙ -->
+                    <div class="ocr-upload-box">
+                        <p><b>Загрузить медицинскую справку/рецепт (OCR)</b></p>
+                        <input type="file" id="ocrFileInput" accept="image/*,.pdf" style="display:none;">
+                        <button class="action-btn-sec" id="simUploadBtn">📁 Выбрать файл для распознавания</button>
+                        <span id="ocrStatus" class="ocr-status-text"></span>
+                    </div>
                 </div>
             </section>
         </main>
@@ -75,7 +99,7 @@
                 <div class="journal-placeholder">Здесь фиксируются симптомы...</div>
             </div>
             <div class="journal-footer" id="nextStepContainer" style="display: none;">
-                <button class="transition-btn" id="goToRegistryBtn">К протоколам ➔</button>
+                <button class="transition-btn" id="goToRegistryBtn">К протоколу ЕМИАС ➔</button>
             </div>
         </aside>
     </div>

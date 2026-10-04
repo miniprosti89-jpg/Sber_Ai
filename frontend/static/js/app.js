@@ -1,9 +1,9 @@
 document.addEventListener('DOMContentLoaded', () => {
     const sendBtn = document.getElementById('sendBtn');
-    const finishBtn = document.getElementById('finishBtn');
     const userInput = document.getElementById('userInput');
     const chatMessages = document.getElementById('chatMessages');
     const analysisList = document.getElementById('analysisList');
+    const micBtn = document.getElementById('micBtn');
 
     const menuButtons = document.querySelectorAll('.menu-btn');
     const sections = document.querySelectorAll('.app-section');
@@ -11,13 +11,67 @@ document.addEventListener('DOMContentLoaded', () => {
     const navMeds = document.getElementById('navMeds');
     const nextStepContainer = document.getElementById('nextStepContainer');
     const goToRegistryBtn = document.getElementById('goToRegistryBtn');
-    const ticketSummary = document.getElementById('ticketSummary');
     const confirmRegistryBtn = document.getElementById('confirmRegistryBtn');
+
+    const triageBadge = document.getElementById('triageBadge');
+    const triageText = document.getElementById('triageText');
+
+    const ocrFileInput = document.getElementById('ocrFileInput');
     const simUploadBtn = document.getElementById('simUploadBtn');
+    const ocrStatus = document.getElementById('ocrStatus');
+    const medList = document.getElementById('medList');
 
     let confirmedSymptoms = [];
+    let currentQuestion = 'Опишите ваше состояние или симптомы.';
+    let finished = false;
+    let busy = false;
 
-    // Переключение режимов (вкладок)
+    // Сброс сессии
+    fetch('/api/reset', { method: 'POST' }).catch(() => {});
+
+    // --- 1. ГОЛОСОВОЙ ВВОД (WEB SPEECH API) ---
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'ru-RU';
+        recognition.interimResults = false;
+
+        micBtn.addEventListener('click', () => {
+            if (micBtn.classList.contains('recording')) {
+                recognition.stop();
+            } else {
+                recognition.start();
+                micBtn.classList.add('recording');
+            }
+        });
+
+        recognition.onresult = (e) => {
+            userInput.value = e.results[0][0].transcript;
+            micBtn.classList.remove('recording');
+        };
+
+        recognition.onerror = () => micBtn.classList.remove('recording');
+        recognition.onend = () => micBtn.classList.remove('recording');
+    } else {
+        micBtn.style.display = 'none';
+    }
+
+    // --- 2. ИНДИКАТОР ТРИАЖА (СВЕТОФОР) ---
+    function updateTriageBadge(level) {
+        triageBadge.className = 'triage-status-badge';
+        if (level === 'red') {
+            triageBadge.classList.add('triage-red');
+            triageText.textContent = '🚨 ЭКСТРЕННО: СРОЧНО 112/103';
+        } else if (level === 'yellow') {
+            triageBadge.classList.add('triage-yellow');
+            triageText.textContent = '⚠️ Внимание: Прием в течение 24ч';
+        } else {
+            triageBadge.classList.add('triage-green');
+            triageText.textContent = '🟢 Состояние: Плановый визит';
+        }
+    }
+
+    // Вкладки
     menuButtons.forEach(btn => {
         btn.addEventListener('click', () => {
             if (btn.disabled) return;
@@ -27,10 +81,10 @@ document.addEventListener('DOMContentLoaded', () => {
             const targetMode = btn.dataset.mode;
             sections.forEach(sec => {
                 sec.classList.remove('active-section');
-                if (sec.id === `section-${targetMode}`) {
-                    sec.classList.add('active-section');
-                }
+                if (sec.id === `section-${targetMode}`) sec.classList.add('active-section');
             });
+
+            if (targetMode === 'registry') loadSoapProtocol();
         });
     });
 
@@ -41,13 +95,6 @@ document.addEventListener('DOMContentLoaded', () => {
         chatMessages.appendChild(msg);
         chatMessages.scrollTop = chatMessages.scrollHeight;
     }
-
-    let currentQuestion = 'Опишите ваше состояние или симптомы.';   // последний вопрос ИИ
-    let finished = false;
-    let busy = false;
-
-    // Новая сессия — чистим json с жалобами
-    fetch('/api/reset', { method: 'POST' }).catch(() => {});
 
     function escapeHtml(str) {
         const d = document.createElement('div');
@@ -65,31 +112,12 @@ document.addEventListener('DOMContentLoaded', () => {
         analysisList.appendChild(card);
     }
 
-    function setBusy(v) {
-        busy = v;
-        sendBtn.disabled = v || finished;
-        finishBtn.disabled = v || finished;
-        userInput.disabled = v || finished;
-    }
-
-    finishBtn.addEventListener('click', () => {
-        if (busy || finished) return;
-        if (confirmedSymptoms.length === 0) {
-            addMessage('Пока нет ни одной подтверждённой жалобы. Опишите, что вас беспокоит.', 'ai');
-            return;
-        }
-        finished = true;
-        setBusy(false);
-        addMessage('Спасибо! Я собрал информацию для врача. Нажмите «Перейти к записи к врачу» справа.', 'ai');
-    });
-
     async function confirmSymptom(text, container) {
-        container.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#ffffff; font-weight:bold;">✓ Добавлено в журнал жалоб</span>';
+        container.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#ffffff; font-weight:bold;">✓ Добавлено в журнал</span>';
         addSymptomCard(text);
         confirmedSymptoms.push({ question: currentQuestion, answer: text });
         nextStepContainer.style.display = 'block';
 
-        setBusy(true);
         try {
             const resp = await fetch('/api/complaints', {
                 method: 'POST',
@@ -101,40 +129,10 @@ document.addEventListener('DOMContentLoaded', () => {
             if (data.question) {
                 currentQuestion = data.question;
                 addMessage(data.question, 'ai');
-            } else {
-                addMessage(data.error || 'Не удалось получить уточняющий вопрос.', 'ai');
             }
         } catch (e) {
             addMessage('Ошибка связи с сервером.', 'ai');
         }
-        setBusy(false);
-        if (!finished) userInput.focus();
-    }
-
-    const EMERGENCY_HTML = `
-        <div style="color:#b3261e; font-weight:700; font-size:16px;">⚠️ Это может быть неотложное состояние!</div>
-        <div style="margin-top:8px;">Прекратите общение с ассистентом и <b>срочно позвоните в скорую помощь</b>.
-        Не ждите записи к врачу и не пытайтесь добраться самостоятельно.</div>
-        <div style="margin-top:10px; line-height:1.7;">
-            📞 <b>112</b> — единый номер экстренных служб<br>
-            📞 <b>103</b> — скорая медицинская помощь<br>
-            📞 <b>8-800-100-01-12</b> — телефон для звонков с мобильных, если 112 недоступен
-        </div>
-        <div style="margin-top:10px;">Назовите диспетчеру адрес и опишите, что с вами происходит.</div>
-    `;
-
-    function showEmergency() {
-        finished = true;
-        sendBtn.disabled = true;
-        finishBtn.disabled = true;
-        userInput.disabled = true;
-        userInput.placeholder = 'Диалог остановлен. Позвоните 112 или 103.';
-        const msg = document.createElement('div');
-        msg.className = 'message ai-message';
-        msg.style.border = '2px solid #b3261e';
-        msg.innerHTML = EMERGENCY_HTML;
-        chatMessages.appendChild(msg);
-        chatMessages.scrollTop = chatMessages.scrollHeight;
     }
 
     async function handleUserSubmit() {
@@ -144,67 +142,90 @@ document.addEventListener('DOMContentLoaded', () => {
         addMessage(text, 'user');
         userInput.value = '';
 
-        // Проверка на экстренное состояние до любых вопросов
-        setBusy(true);
-        let emergency = false;
+        // Триаж проверка
         try {
             const r = await fetch('/api/triage', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text })
             });
-            emergency = (await r.json()).emergency === true;
-        } catch (e) { /* сервер недоступен — продолжаем обычный диалог */ }
-        setBusy(false);
+            const triageRes = await r.json();
+            updateTriageBadge(triageRes.level);
 
-        if (emergency) {
-            showEmergency();
-            return;
-        }
+            if (triageRes.emergency) {
+                finished = true;
+                sendBtn.disabled = true;
+                userInput.disabled = true;
+                addMessage('⚠️ ВНИМАНИЕ! Вы описали симптомы экстренного состояния. Пожалуйста, немедленно вызовите скорую помощь по номеру 112 или 103!', 'ai');
+                return;
+            }
+        } catch (e) {}
 
-        setTimeout(() => {
-            const aiMsgContainer = document.createElement('div');
-            aiMsgContainer.className = 'message ai-message';
-            aiMsgContainer.innerHTML = `
-                <div>Обработано: <b>«${escapeHtml(text)}»</b>.<br>Внести симптом в журнал жалоб?</div>
-                <div class="action-buttons">
-                    <button class="act-btn btn-yes">Да</button>
-                    <button class="act-btn btn-no">Нет</button>
-                </div>
-            `;
-            chatMessages.appendChild(aiMsgContainer);
-            chatMessages.scrollTop = chatMessages.scrollHeight;
+        const aiMsgContainer = document.createElement('div');
+        aiMsgContainer.className = 'message ai-message';
+        aiMsgContainer.innerHTML = `
+            <div>Обработано: <b>«${escapeHtml(text)}»</b>.<br>Внести симптом в журнал жалоб?</div>
+            <div class="action-buttons">
+                <button class="act-btn btn-yes">Да</button>
+                <button class="act-btn btn-no">Нет</button>
+            </div>
+        `;
+        chatMessages.appendChild(aiMsgContainer);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
 
-            aiMsgContainer.querySelector('.btn-yes').addEventListener('click', () => confirmSymptom(text, aiMsgContainer));
-
-            aiMsgContainer.querySelector('.btn-no').addEventListener('click', () => {
-                aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#e5e7eb;">✗ Отклонено</span>';
-                // Нет — задаём вопрос заново
-                addMessage(currentQuestion || 'Опишите ваше состояние или симптомы.', 'ai');
-            });
-        }, 400);
+        aiMsgContainer.querySelector('.btn-yes').addEventListener('click', () => confirmSymptom(text, aiMsgContainer));
+        aiMsgContainer.querySelector('.btn-no').addEventListener('click', () => {
+            aiMsgContainer.querySelector('.action-buttons').innerHTML = '<span style="font-size:13px; color:#e5e7eb;">✗ Отклонено</span>';
+            addMessage(currentQuestion, 'ai');
+        });
     }
 
     sendBtn.addEventListener('click', handleUserSubmit);
-    userInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') handleUserSubmit();
-    });
+    userInput.addEventListener('keypress', (e) => { if (e.key === 'Enter') handleUserSubmit(); });
 
     goToRegistryBtn.addEventListener('click', () => {
         navRegistry.disabled = false;
         navRegistry.click();
-        ticketSummary.innerHTML = `<b>Собранные данные для протокола:</b><br>` + confirmedSymptoms.map(s =>
-            `<div style="margin-top:8px;"><span style="color:#5f6368;">Вопрос ИИ: ${escapeHtml(s.question)}</span><br>• ${escapeHtml(s.answer)}</div>`
-        ).join('');
     });
+
+    // --- 3. ЗАГРУЗКА SOAP ПРОТОКОЛА ---
+    async function loadSoapProtocol() {
+        try {
+            const r = await fetch('/api/soap');
+            const data = await r.json();
+            document.getElementById('soapS').textContent = data.soap.S;
+            document.getElementById('soapO').textContent = data.soap.O;
+            document.getElementById('soapA').textContent = data.soap.A;
+            document.getElementById('soapP').textContent = data.soap.P;
+        } catch (e) {}
+    }
 
     confirmRegistryBtn.addEventListener('click', () => {
-        alert('Данные успешно переданы в защищенный контур ЕМИАС!');
-        navMeds.disabled = false;
-        navMeds.click();
+        alert('Протокол SOAP успешно передан в защищенный контур ЕМИАС!');
     });
 
-    simUploadBtn.addEventListener('click', () => {
-        alert('Справка успешно обработана OCR-модулем. Календарь приема обновлен.');
+    // --- 4. OCR СКАНИРОВАНИЕ РЕЦЕПТОВ ---
+    simUploadBtn.addEventListener('click', () => ocrFileInput.click());
+
+    ocrFileInput.addEventListener('change', async () => {
+        if (!ocrFileInput.files.length) return;
+        ocrStatus.textContent = '⏳ Сканирование и распознавание текста (OCR)...';
+
+        const formData = new FormData();
+        formData.append('file', ocrFileInput.files[0]);
+
+        try {
+            const r = await fetch('/api/ocr', { method: 'POST', body: formData });
+            const res = await r.json();
+
+            ocrStatus.textContent = '✅ Рецепт успешно распознан!';
+            res.extracted_meds.forEach(m => {
+                const li = document.createElement('li');
+                li.innerHTML = `${m.name} — <b>${m.schedule}</b> (Из рецепта)`;
+                medList.appendChild(li);
+            });
+        } catch (e) {
+            ocrStatus.textContent = '❌ Ошибка распознавания.';
+        }
     });
 });

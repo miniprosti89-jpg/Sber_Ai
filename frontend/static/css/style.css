@@ -6,7 +6,7 @@
 }
 
 body {
-    background-color: #31cc9c;
+    background-color: #2ab88b;
     color: #0b3d2c;
     display: flex;
     flex-direction: column;
@@ -14,25 +14,71 @@ body {
     overflow: hidden;
 }
 
-/* Верхняя панель с названием проекта */
+/* Шапка с индикатором триажа */
 .top-header {
-    height: 15%;
-    background-color: #0f9e77;
+    height: 12%;
+    background-color: #0d8a68;
     display: flex;
     align-items: center;
-    padding-left: 20px;
+    justify-content: space-between;
+    padding: 0 30px;
     border-bottom: 2px solid rgba(255, 255, 255, 0.2);
 }
 
 .top-header h1 {
-    font-size: 40px;
+    font-size: 32px;
     color: #ffffff;
     font-weight: bold;
-    letter-spacing: 0.5px;
-    margin-left: 3%
 }
 
-/* Общий контейнер */
+/* Светофор Триажа */
+.triage-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 18px;
+    border-radius: 20px;
+    font-size: 14px;
+    font-weight: bold;
+    transition: all 0.3s ease;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    display: inline-block;
+}
+
+.triage-green {
+    background-color: #e8f5e9;
+    color: #2e7d32;
+    border: 1px solid #a5d6a7;
+}
+.triage-green .status-dot { background-color: #2e7d32; }
+
+.triage-yellow {
+    background-color: #fffde7;
+    color: #f57f17;
+    border: 1px solid #ffe082;
+}
+.triage-yellow .status-dot { background-color: #f57f17; }
+
+.triage-red {
+    background-color: #ffebee;
+    color: #c62828;
+    border: 1px solid #ef9a9a;
+    animation: pulseRed 1.2s infinite;
+}
+.triage-red .status-dot { background-color: #c62828; }
+
+@keyframes pulseRed {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.03); }
+    100% { transform: scale(1); }
+}
+
+/* Контейнер приложения */
 .app-container {
     display: flex;
     flex: 1;
@@ -41,13 +87,12 @@ body {
 
 /* Левая панель */
 .left-sidebar {
-    width: 25%;
-    background-color: #47e1a7;
+    width: 22%;
+    background-color: #3fd19a;
     padding: 20px;
     display: flex;
     flex-direction: column;
     border-right: 2px solid rgba(255, 255, 255, 0.2);
-    border-radius: 0 0 0 10px;
 }
 
 .user-profile {
@@ -55,21 +100,22 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 20px;
 }
 
 .avatar-circle {
-    width: 200px;
-    height: 200px;
-    border: 5px solid #176da5;
+    width: 110px;
+    height: 110px;
+    border: 4px solid #176da5;
     border-radius: 50%;
     margin-bottom: 10px;
+    background-color: #ffffff;
 }
 
 .welcome-text {
-    font-size: 30px;
+    font-size: 20px;
     color: #ffffff;
-    line-height: 1.4;
+    line-height: 1.3;
 }
 
 .nav-menu {
@@ -78,47 +124,32 @@ body {
     gap: 12px;
 }
 
-/* Кнопки меню (строго по цветам макета + скругление 10px) */
 .menu-btn {
     background-color: #176da5;
     color: #ffffff;
     border: none;
-    padding: 30px 16px;
+    padding: 16px 14px;
     border-radius: 10px;
     text-align: left;
-    font-size: 20px;
+    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
 }
 
-.menu-btn:hover:not(:disabled) {
-    background-color: #145f88;
-}
+.menu-btn:hover:not(:disabled) { background-color: #145f88; }
+.menu-btn.active { background-color: #0f4c6e; }
+.menu-btn:disabled { opacity: 0.4; cursor: not-allowed; }
 
-.menu-btn:active:not(:disabled) {
-    background-color: #0e4869;
-}
-
-.menu-btn.active {
-    background-color: #0f4c6e;
-}
-
-.menu-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* Центральная область (чат) */
+/* Центральная область */
 .center-content {
     flex: 2;
-    background-color: #94e1ca;
+    background-color: #8ce0c6;
     display: flex;
     flex-direction: column;
     padding: 15px;
     border-radius: 10px;
     margin: 10px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
 }
 
 .app-section {
@@ -126,29 +157,25 @@ body {
     flex-direction: column;
     height: 100%;
 }
-
-.app-section.active-section {
-    display: flex;
-}
+.app-section.active-section { display: flex; }
 
 .chat-messages {
     flex: 1;
-    background-color: #d9f2ec;
+    background-color: #d2f2e7;
     border-radius: 10px;
     padding: 15px;
     overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: 12px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
 }
 
-/* Сообщения и иконки скругление 10px, крупный шрифт */
 .message {
-    padding: 14px 18px;
+    padding: 12px 16px;
     border-radius: 10px;
     font-size: 15px;
-    max-width: 75%;
+    max-width: 80%;
+    line-height: 1.4;
 }
 
 .ai-message {
@@ -158,7 +185,7 @@ body {
 }
 
 .user-message {
-    background-color: #47e1a7;
+    background-color: #3fd19a;
     color: #0b3d2c;
     font-weight: 600;
     align-self: flex-end;
@@ -173,7 +200,7 @@ body {
 .act-btn {
     padding: 6px 14px;
     border: none;
-    border-radius: 10px;
+    border-radius: 8px;
     font-size: 13px;
     font-weight: bold;
     cursor: pointer;
@@ -181,15 +208,15 @@ body {
 .btn-yes { background-color: #1a8263; color: #fff; }
 .btn-no { background-color: #d1d5db; color: #374151; }
 
-/* Панель ввода */
+/* Панель ввода и кнопка Микрофона */
 .chat-input-area {
     margin-top: 10px;
-    background-color: #caf2e9;
-    padding: 12px 16px;
+    background-color: #c3f0e3;
+    padding: 10px 14px;
     border-radius: 10px;
     display: flex;
     gap: 10px;
-    border: 1px solid rgba(255, 255, 255, 0.5);
+    align-items: center;
 }
 
 .chat-input-area input {
@@ -201,49 +228,47 @@ body {
     color: #0b3d2c;
 }
 
-.chat-input-area input::placeholder {
-    color: #4a6b5e;
+.mic-btn {
+    background: #ffffff;
+    border: 1px solid #1a7bb0;
+    font-size: 18px;
+    padding: 8px 12px;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+.mic-btn.recording {
+    background: #e53935;
+    color: #fff;
+    border-color: #e53935;
+    animation: pulseMic 1s infinite;
 }
 
-.chat-input-area button {
+@keyframes pulseMic {
+    0% { transform: scale(1); }
+    50% { transform: scale(1.1); }
+    100% { transform: scale(1); }
+}
+
+.chat-input-area button#sendBtn {
     background-color: #1a7bb0;
     color: #fff;
     border: none;
     padding: 10px 20px;
     border-radius: 10px;
-    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    transition: background 0.2s;
 }
-.chat-input-area .finish-btn { background-color: #1e8e3e; }
-.chat-input-area .finish-btn:hover { background-color: #137333; }
-.chat-input-area .finish-btn:active { background-color: #0d5c28; }
-.chat-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
 
-.chat-input-area button:hover { background-color: #145f88; }
-.chat-input-area button:active { background-color: #0e4869; }
-
-/* Правая панель (Журнал жалоб) */
+/* Правая панель */
 .right-sidebar {
-    width: 20%;
-
-    background-color: #94e1ca;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    margin-right: 10px;
+    width: 22%;
+    background-color: #8ce0c6;
+    margin: 10px 10px 10px 0;
     padding: 20px;
     display: flex;
     flex-direction: column;
-    border-left: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 10px;
-}
-
-.right-sidebar h3 {
-    font-size: 16px;
-    color: #0b3d2c;
-    margin-bottom: 15px;
-    font-weight: bold;
 }
 
 .journal-list {
@@ -254,20 +279,12 @@ body {
     overflow-y: auto;
 }
 
-.journal-placeholder {
-    font-size: 13px;
-    color: #1a8263;
-    text-align: center;
-    margin-top: 30px;
-}
-
 .journal-card {
     background: #ffffff;
     padding: 12px;
     border-radius: 10px;
     border-left: 4px solid #1a8263;
     font-size: 14px;
-    color: #0b3d2c;
 }
 
 .transition-btn, .action-btn-main {
@@ -277,34 +294,82 @@ body {
     border: none;
     padding: 12px;
     border-radius: 10px;
-    font-size: 14px;
     font-weight: bold;
     cursor: pointer;
-    transition: background 0.2s;
 }
-.transition-btn:hover, .action-btn-main:hover { background-color: #145f88; }
-.transition-btn:active, .action-btn-main:active { background-color: #0e4869; }
 
-.download-btn {
-    display: block;
-    box-sizing: border-box;
-    margin-top: 10px;
-    text-align: center;
-    text-decoration: none;
-    background-color: #1e8e3e;
-}
-.download-btn:hover { background-color: #137333; }
-.download-btn:active { background-color: #0d5c28; }
-
-/* Дополнительные карточки */
+/* SOAP Карточка */
 .section-card {
     background: #bbf3e2;
-    padding: 30px;
+    padding: 24px;
     border-radius: 10px;
-    border: 1px solid rgba(255,255,255,0.5);
+    height: 100%;
+    display: flex;
+    flex-direction: column;
 }
-.section-card h2 { margin-bottom: 12px; color: #0b3d2c; font-size: 20px; }
-.section-card p { font-size: 15px; color: #235342; margin-bottom: 20px; }
-.ticket-preview { background: #ffffff; padding: 14px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; color: #0b3d2c; }
-.action-btn-sec { background: #e5e7eb; color: #374151; border: none; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; }
-.med-schedule-list { list-style: none; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
+
+.soap-container {
+    background: #ffffff;
+    padding: 16px;
+    border-radius: 10px;
+    margin: 15px 0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+}
+
+.soap-block {
+    padding: 8px;
+    background: #f4fbf8;
+    border-radius: 6px;
+    border-left: 3px solid #1a7bb0;
+}
+
+.action-row {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+}
+
+.download-pdf-btn {
+    background: #1a8263;
+    color: #ffffff;
+    text-decoration: none;
+    padding: 12px 18px;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 14px;
+    white-space: nowrap;
+}
+
+/* OCR Модуль */
+.ocr-upload-box {
+    margin-top: 20px;
+    padding: 16px;
+    background: #ffffff;
+    border-radius: 10px;
+    border: 2px dashed #1a7bb0;
+    text-align: center;
+}
+
+.action-btn-sec {
+    background: #1a7bb0;
+    color: #fff;
+    border: none;
+    padding: 10px 16px;
+    border-radius: 8px;
+    font-weight: bold;
+    margin-top: 10px;
+    cursor: pointer;
+}
+
+.ocr-status-text {
+    display: block;
+    margin-top: 8px;
+    font-size: 13px;
+    color: #1a8263;
+    font-weight: bold;
+}
+.med-schedule-list { list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.med-schedule-list li { background: #fff; padding: 10px; border-radius: 8px; font-size: 14px; }

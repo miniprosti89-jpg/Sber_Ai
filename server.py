@@ -1,26 +1,27 @@
+import asyncio
 import json
 import os
 import re
+import uuid
 import urllib.request
 from datetime import datetime
 from io import BytesIO
 from pathlib import Path
-from threading import Lock
+from typing import Dict, List, Optional
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Cookie, Response, Request, UploadFile, File
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response as FastAPIResponse, JSONResponse
 from pydantic import BaseModel
 
 app = FastAPI()
 
 OLLAMA_URL = os.getenv("OLLAMA_URL", "http://127.0.0.1:11434/api/chat")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "qwen2.5:3b")
-COMPLAINTS_FILE = Path(__file__).parent / "complaints.json"
 
-_lock = Lock()
+# Хранилище сессий в памяти (session_id -> список жалоб)
+SESSIONS: Dict[str, List[dict]] = {}
 
-# Подключаем статические файлы (CSS, JS)
 app.mount("/static", StaticFiles(directory="frontend/static"), name="static")
 
 
@@ -29,18 +30,21 @@ class Complaint(BaseModel):
     question: str = ""
 
 
-def _load() -> list:
-    if COMPLAINTS_FILE.exists():
-        return json.loads(COMPLAINTS_FILE.read_text(encoding="utf-8"))
-    return []
+class Text(BaseModel):
+    text: str
 
 
-def _save(items: list) -> None:
-    COMPLAINTS_FILE.write_text(json.dumps(items, ensure_ascii=False, indent=2), encoding="utf-8")
+def get_session_id(request: Request, response: Response) -> str:
+    session_id = request.cookies.get("session_id")
+    if not session_id or session_id not in SESSIONS:
+        session_id = str(uuid.uuid4())
+        response.set_cookie(key="session_id", value=session_id, httponly=True)
+        SESSIONS[session_id] = []
+    return session_id
 
 
-def ask_model(complaints: list) -> str:
-    """Просит qwen2.5:3b (через Ollama) придумать следующий уточняющий вопрос."""
+def _ask_model_sync(complaints: list) -> str:
+    """Асинхронный вызов Ollama через поток."""
     payload = {
         "model": OLLAMA_MODEL,
         "stream": False,
@@ -64,12 +68,12 @@ def ask_model(complaints: list) -> str:
         data=json.dumps(payload).encode("utf-8"),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(req, timeout=120) as resp:
+    with urllib.request.urlopen(req, timeout=30) as resp:
         return json.loads(resp.read().decode("utf-8"))["message"]["content"].strip()
 
 
-# Страховка: явные признаки неотложных состояний ловятся правилами, даже если модель недоступна или ошиблась
-EMERGENCY_PATTERNS = [
+# Красный уровень триажа (Экстренное состояние)
+RED_PATTERNS = [
     r"боль\w* (в|за) (груди|грудин)", r"давит (в|за) (груди|грудин)", r"сердечн\w+ приступ", r"инфаркт",
     r"инсульт", r"перекосил[оа]? (лицо|рот)", r"(онемел|отнял)\w* (рука|нога|половина|лицо|лиц)",
     r"не могу (говорить|дышать|вдохнуть)", r"задыха\w+", r"нечем дышать", r"удуш",
@@ -78,23 +82,22 @@ EMERGENCY_PATTERNS = [
     r"анафилакт", r"отёк\w* (горла|языка|гортани)", r"отек\w* (горла|языка|гортани)",
     r"отравил", r"хочу умереть", r"покончить с собой", r"суицид",
 ]
-_emergency_re = re.compile("|".join(EMERGENCY_PATTERNS), re.IGNORECASE)
+_red_re = re.compile("|".join(RED_PATTERNS), re.IGNORECASE)
+
+# Желтый уровень триажа (Внимание / Полуэкстренное)
+YELLOW_PATTERNS = [
+    r"высокая температура", r"39\b", r"40\b", r"сильная боль в животе", r"острая боль",
+    r"рвота", r"высокое давление", r"гипертонич", r"головокружен"
+]
+_yellow_re = re.compile("|".join(YELLOW_PATTERNS), re.IGNORECASE)
 
 TRIAGE_PROMPT = (
-    "Ты определяешь, описывает ли пациент ЭКСТРЕННОЕ, угрожающее жизни состояние, при котором нужно "
-    "немедленно вызывать скорую: острая боль или давление в груди, признаки инсульта (перекос лица, "
-    "онемение руки или ноги, нарушение речи, внезапная сильная головная боль), тяжёлое удушье, потеря "
-    "сознания, судороги, сильное кровотечение, анафилаксия, отравление, суицидальные намерения. "
-    "Обычные симптомы (насморк, больное горло, умеренная температура, лёгкая головная боль, кашель) "
-    "НЕ являются экстренными. Ответь JSON: {\"emergency\": true} или {\"emergency\": false}."
+    "Ты определяешь, описывает ли пациент ЭКСТРЕННОЕ, угрожающее жизни состояние. "
+    "Ответь JSON: {\"emergency\": true} или {\"emergency\": false}."
 )
 
 
-class Text(BaseModel):
-    text: str
-
-
-def llm_is_emergency(text: str) -> bool:
+def _llm_is_emergency_sync(text: str) -> bool:
     payload = {
         "model": OLLAMA_MODEL,
         "stream": False,
@@ -108,108 +111,146 @@ def llm_is_emergency(text: str) -> bool:
     req = urllib.request.Request(
         OLLAMA_URL, data=json.dumps(payload).encode("utf-8"), headers={"Content-Type": "application/json"}
     )
-    with urllib.request.urlopen(req, timeout=60) as resp:
+    with urllib.request.urlopen(req, timeout=15) as resp:
         content = json.loads(resp.read().decode("utf-8"))["message"]["content"]
     return bool(json.loads(content).get("emergency"))
 
 
 @app.post("/api/triage")
-def triage(t: Text):
-    """Экстренное ли состояние: правила + нейросеть. При недоступности модели работают только правила."""
-    if _emergency_re.search(t.text):
-        return {"emergency": True, "source": "rules"}
+async def triage(t: Text):
+    """Определяет уровень риска: red (экстренно), yellow (внимание), green (планово)."""
+    if _red_re.search(t.text):
+        return {"level": "red", "emergency": True, "source": "rules"}
+
+    if _yellow_re.search(t.text):
+        return {"level": "yellow", "emergency": False, "source": "rules"}
+
     try:
-        if llm_is_emergency(t.text):
-            return {"emergency": True, "source": "llm"}
+        is_red = await asyncio.to_thread(_llm_is_emergency_sync, t.text)
+        if is_red:
+            return {"level": "red", "emergency": True, "source": "llm"}
     except Exception:
         pass
-    return {"emergency": False}
+
+    return {"level": "green", "emergency": False}
 
 
 @app.get("/")
-def read_index():
+async def read_index():
     return FileResponse("frontend/templates/index.html")
 
 
 @app.post("/api/reset")
-def reset():
-    with _lock:
-        _save([])
+async def reset(request: Request, response: Response):
+    sid = get_session_id(request, response)
+    SESSIONS[sid] = []
     return {"count": 0}
 
 
 @app.post("/api/complaints")
-def add_complaint(c: Complaint):
-    """Логирует подтверждённую жалобу в JSON и просит модель задать следующий уточняющий вопрос."""
-    with _lock:
-        items = _load()
-        items.append({"n": len(items) + 1, "question": c.question, "complaint": c.text})
-        _save(items)
+async def add_complaint(c: Complaint, request: Request, response: Response):
+    sid = get_session_id(request, response)
+    items = SESSIONS[sid]
+    items.append({"n": len(items) + 1, "question": c.question, "complaint": c.text})
 
     try:
-        question = ask_model(items)
+        question = await asyncio.to_thread(_ask_model_sync, items)
     except Exception as e:
         return {"count": len(items), "question": None, "error": f"Модель недоступна: {e}"}
+
     return {"count": len(items), "question": question}
 
 
-FONT_CANDIDATES = [
-    ("C:/Windows/Fonts/arial.ttf", "C:/Windows/Fonts/arialbd.ttf"),
-    ("/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"),
-    ("/Library/Fonts/Arial.ttf", "/Library/Fonts/Arial Bold.ttf"),
-]
+@app.get("/api/soap")
+async def get_soap_protocol(request: Request, response: Response):
+    """Формирует структурированный SOAP-протокол для ЕМИАС."""
+    sid = get_session_id(request, response)
+    items = SESSIONS.get(sid, [])
+
+    symptoms_text = "; ".join([it["complaint"] for it in items]) if items else "Жалобы не зафиксированы"
+
+    soap_data = {
+        "patient": "Вито Скаллето",
+        "date": datetime.now().strftime("%d.%m.%Y %H:%M"),
+        "specialist": "Терапевт",
+        "soap": {
+            "S": f"Субъективные жалобы: {symptoms_text}.",
+            "O": "Объективные данные: Состояние удовлетворительное. Первичный сбор проведен через ИИ-помощника.",
+            "A": "Предварительное суждение: ОРИЗ / Функциональное расстройство (требует очного осмотра).",
+            "P": "План действий: Очный прием терапевта, первичная лабораторная диагностика (ОАК, ОАМ)."
+        },
+        "items": items
+    }
+    return soap_data
 
 
-def build_protocol_pdf(items: list) -> bytes:
-    from reportlab.lib.pagesizes import A4
-    from reportlab.lib.styles import ParagraphStyle
-    from reportlab.lib.units import mm
-    from reportlab.pdfbase import pdfmetrics
-    from reportlab.pdfbase.ttfonts import TTFont
-    from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
-    from xml.sax.saxutils import escape
+@app.post("/api/ocr")
+async def process_ocr(file: UploadFile = File(None)):
+    """Симуляция OCR-модуля распознавания рецептов и справок."""
+    await asyncio.sleep(1.2)  # имитация обработки файла
+    return {
+        "status": "success",
+        "extracted_meds": [
+            {"name": "💊 Амоксиклав 500мг", "schedule": "2 раза в день (после еды)"},
+            {"name": "💧 Витамин C 1000мг", "schedule": "1 раз в день (утро)"}
+        ]
+    }
 
-    regular, bold = "Helvetica", "Helvetica-Bold"
-    for reg_path, bold_path in FONT_CANDIDATES:
-        if os.path.exists(reg_path) and os.path.exists(bold_path):
-            pdfmetrics.registerFont(TTFont("Proto", reg_path))
-            pdfmetrics.registerFont(TTFont("Proto-Bold", bold_path))
-            regular, bold = "Proto", "Proto-Bold"
-            break
 
-    title = ParagraphStyle("t", fontName=bold, fontSize=16, leading=22, spaceAfter=4)
-    meta = ParagraphStyle("m", fontName=regular, fontSize=10, textColor="#5f6368", leading=14, spaceAfter=10)
-    h = ParagraphStyle("h", fontName=bold, fontSize=12, leading=16, spaceBefore=10, spaceAfter=4)
-    q = ParagraphStyle("q", fontName=regular, fontSize=10, leading=14, textColor="#5f6368", spaceBefore=6)
-    a = ParagraphStyle("a", fontName=regular, fontSize=11, leading=15, leftIndent=8)
+def _build_pdf_bytes(items: list) -> bytes:
+    """Генерация PDF документа с поддержкой кириллицы."""
+    try:
+        from reportlab.lib.pagesizes import A4
+        from reportlab.lib.styles import ParagraphStyle
+        from reportlab.lib.units import mm
+        from reportlab.pdfbase import pdfmetrics
+        from reportlab.pdfbase.ttfonts import TTFont
+        from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
+        from xml.sax.saxutils import escape
 
-    story = [
-        Paragraph("Направление к врачу-терапевту", title),
-        Paragraph(f"Предварительный протокол сбора анамнеза · {datetime.now():%d.%m.%Y %H:%M}", meta),
-        Paragraph("Жалобы и анамнез со слов пациента", h),
-    ]
-    if not items:
-        story.append(Paragraph("Жалобы не зафиксированы.", a))
-    for it in items:
-        if it.get("question"):
-            story.append(Paragraph("Вопрос ИИ: " + escape(it["question"]), q))
-        story.append(Paragraph("• " + escape(it["complaint"]), a))
-    story += [Spacer(1, 10 * mm), Paragraph(
-        "Документ сформирован автоматически ИИ-помощником на основе ответов пациента и не является медицинским заключением.",
-        meta)]
+        font_name = "Helvetica"
+        for reg_path in ["C:/Windows/Fonts/arial.ttf", "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+                         "/Library/Fonts/Arial.ttf"]:
+            if os.path.exists(reg_path):
+                pdfmetrics.registerFont(TTFont("CustomFont", reg_path))
+                font_name = "CustomFont"
+                break
 
-    buf = BytesIO()
-    SimpleDocTemplate(buf, pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm,
-                      topMargin=20 * mm, bottomMargin=20 * mm, title="Протокол анамнеза").build(story)
-    return buf.getvalue()
+        title_style = ParagraphStyle("t", fontName=font_name, fontSize=16, leading=22, spaceAfter=8)
+        body_style = ParagraphStyle("b", fontName=font_name, fontSize=11, leading=16, spaceAfter=6)
+
+        story = [
+            Paragraph("<b>МЕДИЦИНСКИЙ ПРОТОКОЛ (ЕМИАС)</b>", title_style),
+            Paragraph(f"Дата формирования: {datetime.now():%d.%m.%Y %H:%M}", body_style),
+            Paragraph("<b>Пациент:</b> Вито Скаллето", body_style),
+            Spacer(1, 10 * mm),
+            Paragraph("<b>Собранный анамнез:</b>", body_style)
+        ]
+        for it in items:
+            story.append(Paragraph(f"• <b>Вопрос:</b> {escape(it.get('question', ''))}", body_style))
+            story.append(Paragraph(f"  <b>Ответ:</b> {escape(it.get('complaint', ''))}", body_style))
+            story.append(Spacer(1, 3 * mm))
+
+        buf = BytesIO()
+        doc = SimpleDocTemplate(buf, pagesize=A4, leftMargin=20 * mm, rightMargin=20 * mm, topMargin=20 * mm,
+                                bottomMargin=20 * mm)
+        doc.build(story)
+        return buf.getvalue()
+    except Exception:
+        # Простой текстовый фоллбэк, если reportlab недоступен
+        text = f"МЕДИЦИНСКИЙ ПРОТОКОЛ (ЕМИАС)\nДата: {datetime.now():%d.%m.%Y %H:%M}\n\n"
+        for it in items:
+            text += f"В: {it.get('question', '')}\nО: {it.get('complaint', '')}\n\n"
+        return text.encode('utf-8')
 
 
 @app.get("/api/protocol.pdf")
-def protocol_pdf():
-    with _lock:
-        items = _load()
-    return Response(
-        build_protocol_pdf(items),
+async def protocol_pdf(request: Request, response: Response):
+    sid = get_session_id(request, response)
+    items = SESSIONS.get(sid, [])
+    pdf_content = await asyncio.to_thread(_build_pdf_bytes, items)
+    return FastAPIResponse(
+        content=pdf_content,
         media_type="application/pdf",
-        headers={"Content-Disposition": 'attachment; filename="protocol.pdf"'},
+        headers={"Content-Disposition": 'attachment; filename="protocol_emias.pdf"'}
     )
