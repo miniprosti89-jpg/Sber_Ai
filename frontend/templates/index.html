@@ -4,66 +4,164 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ХелпИнатор // ИИ-помощник пациента</title>
-    <link rel="stylesheet" href="../static/css/style.css">
+    <!-- cache-buster, чтобы браузер не отдавал старый CSS -->
+    <link rel="stylesheet" href="../static/css/style.css?v=3">
 </head>
-<body>
-    <!-- ВЕРХНЯЯ ПАНЕЛЬ С НАЗВАНИЕМ ПРОЕКТА -->
+<body class="auth-locked">
+    <!-- ====================== АВТОРИЗАЦИЯ (ПОЛНОЭКРАННЫЙ ОВЕРЛЕЙ) ====================== -->
+    <!-- Критичные стили прописаны inline, чтобы оверлей ГАРАНТИРОВАННО был поверх чата -->
+    <div class="auth-overlay" id="authOverlay"
+         style="position:fixed;top:0;left:0;right:0;bottom:0;z-index:99999;
+                display:flex;align-items:center;justify-content:center;
+                background:linear-gradient(135deg,#0f9e77 0%,#31cc9c 100%);
+                padding:20px;">
+        <div class="auth-card">
+            <div class="auth-logo">ХелпИнатор</div>
+            <p class="auth-subtitle">ИИ-помощник пациента ЕМИАС</p>
+
+            <form id="authForm" class="auth-form" autocomplete="off">
+                <label class="auth-label" for="authName">Ваше имя</label>
+                <input type="text" id="authName" placeholder="Иванов Иван Иванович" required maxlength="120">
+
+                <label class="auth-label" for="authEmail">Email для связи с врачом</label>
+                <input type="email" id="authEmail" placeholder="patient@example.com" required maxlength="120">
+
+                <label class="auth-label" for="authAvatar">Аватар (необязательно)</label>
+                <input type="file" id="authAvatar" accept="image/*">
+
+                <label class="consent-plate">
+                    <input type="checkbox" id="authConsent" required>
+                    <span>
+                        Я согласен на обработку персональных данных и медицинской
+                        информации в соответствии с <b>152-ФЗ</b> и политикой
+                        конфиденциальности сервиса.
+                    </span>
+                </label>
+
+                <button type="submit" class="auth-submit">Войти в систему</button>
+                <div class="auth-error" id="authError"></div>
+            </form>
+        </div>
+    </div>
+
+    <!-- ВЕРХНЯЯ ПАНЕЛЬ -->
     <header class="top-header">
         <h1>ХелпИнатор</h1>
+
+        <div class="triage-status-badge triage-green" id="triageBadge">
+            <span class="status-dot"></span>
+            <span id="triageText">Состояние: Плановый визит</span>
+        </div>
     </header>
 
     <div class="app-container">
-        <!-- ЛЕВАЯ ПАНЕЛЬ (Профиль и навигация) -->
+        <!-- ЛЕВАЯ ПАНЕЛЬ -->
         <aside class="left-sidebar">
             <div class="user-profile">
-                <div class="avatar-circle"></div>
-                <div class="welcome-text">Добро пожаловать,<br><b>Вито Скаллето</b></div>
+                <div class="avatar-circle" id="avatarCircle">
+                    <img id="userAvatarImg" src="../static/img/default_avatar.svg" alt="avatar">
+                </div>
+                <div class="welcome-text">Добро пожаловать,<br><b id="userNameLabel">гость</b></div>
+                <button class="logout-link" id="logoutBtn" type="button">Выйти</button>
             </div>
 
             <nav class="nav-menu">
-                <button class="menu-btn active" data-mode="chat">ПЕРВИЧНЫЙ АНАМНЕЗ</button>
-                <button class="menu-btn" data-mode="registry" id="navRegistry" disabled>ЗАГРУЗКА ПРОТОКОЛОВ И РЕЦЕПТОВ</button>
-                <button class="menu-btn" data-mode="medications" id="navMeds" disabled>КАЛЕНДАРЬ</button>
+                <button class="menu-btn active" data-mode="chat" type="button">ПЕРВИЧНЫЙ АНАМНЕЗ</button>
+                <button class="menu-btn" data-mode="registry" id="navRegistry" type="button" disabled>ПРОТОКОЛ ЕМИАС</button>
+                <button class="menu-btn" data-mode="medications" id="navMeds" type="button">КАЛЕНДАРЬ И OCR</button>
             </nav>
         </aside>
 
-        <!-- ЦЕНТРАЛЬНАЯ ОБЛАСТЬ (Чат и разделы) -->
+        <!-- ЦЕНТРАЛЬНАЯ ОБЛАСТЬ -->
         <main class="center-content">
             <!-- РЕЖИМ 1: ЧАТ -->
             <section class="app-section active-section" id="section-chat">
                 <div class="chat-messages" id="chatMessages">
                     <div class="message ai-message">
-                        ВОПРОС/ОТВЕТ ИИ: Опишите ваше состояние, а я сформирую медицинский протокол.
+                        Здравствуйте! Я ИИ-помощник ЕМИАС. Опишите ваши симптомы, и я сформирую первичный анамнез для терапевта.
                     </div>
                 </div>
 
                 <div class="chat-input-area">
-                    <input type="text" id="userInput" placeholder="Опишите что вас беспокоит?">
-                    <button id="sendBtn">Отправить</button>
-                    <button id="finishBtn" class="finish-btn">Это всё</button>
+                    <input type="text" id="userInput" placeholder="Опишите, что вас беспокоит...">
+                    <button id="micBtn" class="mic-btn" type="button" title="Голосовой ввод">🎤</button>
+                    <button id="finishBtn" class="finish-btn" type="button">Завершить</button>
+                    <button id="sendBtn" type="button">Отправить</button>
                 </div>
             </section>
 
-            <!-- РЕЖИМ 2: ПРОТОКОЛЫ И РЕЦЕПТЫ -->
+            <!-- РЕЖИМ 2: ПРОТОКОЛ ЕМИАС (SOAP) -->
             <section class="app-section" id="section-registry">
                 <div class="section-card">
-                    <h2>Загрузка протоколов и рецептов</h2>
-                    <p>На основе собранного анамнеза сформировано направление в ЕМИАС.</p>
+                    <h2>Сформированный протокол ЕМИАС (SOAP)</h2>
+                    <p>На основе анамнеза сформирована структурированная карта для врача.</p>
+
+                    <div class="soap-container" id="soapPreview">
+                        <div class="soap-block"><b>[S] Subjective:</b> <span id="soapS">Загрузка...</span></div>
+                        <div class="soap-block"><b>[O] Objective:</b> <span id="soapO">Загрузка...</span></div>
+                        <div class="soap-block"><b>[A] Assessment:</b> <span id="soapA">Загрузка...</span></div>
+                        <div class="soap-block"><b>[P] Plan:</b> <span id="soapP">Загрузка...</span></div>
+                    </div>
+
                     <div class="ticket-preview" id="ticketSummary"></div>
-                    <button class="action-btn-main" id="confirmRegistryBtn">Подтвердить передачу данных</button>
-                    <a class="action-btn-main download-btn" id="downloadPdfBtn" href="/api/protocol.pdf" download="protocol.pdf">📄 Скачать протокол (PDF)</a>
+
+                    <div class="action-row">
+                        <button class="action-btn-main" id="confirmRegistryBtn" type="button">Подтвердить передачу в ЕМИАС</button>
+                        <a href="/api/protocol.pdf" target="_blank" class="download-pdf-btn download-btn">📄 Скачать PDF-протокол</a>
+                    </div>
+
+                    <div class="email-send-row">
+                        <label class="email-label" for="doctorEmailInput">Отправить PDF врачу на email:</label>
+                        <div class="email-inline">
+                            <input type="email" id="doctorEmailInput" placeholder="doctor@clinic.ru">
+                            <button class="action-btn-sec" id="sendPdfBtn" type="button">✉️ Отправить PDF врачу</button>
+                        </div>
+                        <div class="email-status" id="emailStatus"></div>
+                    </div>
                 </div>
             </section>
 
-            <!-- РЕЖИМ 3: КАЛЕНДАРЬ -->
+            <!-- РЕЖИМ 3: КАЛЕНДАРЬ, РЕЦЕПТЫ, НАПОМИНАНИЯ, OCR -->
             <section class="app-section" id="section-medications">
-                <div class="section-card">
+                <div class="section-card med-card">
                     <h2>Календарь приема препаратов</h2>
-                    <ul class="med-schedule-list">
-                        <li>💊 <b>Препарат по назначению</b> — Утро (Принято)</li>
-                        <li>💧 <b>Питьевой режим</b> — В течение дня</li>
-                    </ul>
-                    <button class="action-btn-sec" id="simUploadBtn">📁 Загрузить справку (OCR)</button>
+
+                    <div class="med-block">
+                        <h3>💊 Мои рецепты</h3>
+                        <ul class="med-schedule-list" id="prescriptionsList">
+                            <li class="med-empty">Здесь появятся ваши рецепты</li>
+                        </ul>
+
+                        <div class="inline-form">
+                            <input id="rxName" placeholder="Название препарата">
+                            <input id="rxDosage" placeholder="Дозировка (напр. 500 мг)">
+                            <input id="rxSchedule" placeholder="Схема (напр. 2 раза в день)">
+                            <button id="addRxBtn" type="button">Добавить</button>
+                        </div>
+                    </div>
+
+                    <div class="med-block">
+                        <h3>⏰ Напоминания о приёме</h3>
+                        <ul class="med-schedule-list" id="remindersList">
+                            <li class="med-empty">Напоминаний пока нет</li>
+                        </ul>
+
+                        <div class="inline-form">
+                            <input id="remMed" placeholder="Препарат">
+                            <input type="datetime-local" id="remTime">
+                            <button id="addRemBtn" type="button">Напомнить</button>
+                        </div>
+                    </div>
+
+                    <div class="med-block">
+                        <h3>📄 OCR-распознавание справок и рецептов</h3>
+                        <div class="ocr-upload-box">
+                            <p><b>Загрузить медицинскую справку/рецепт (OCR)</b></p>
+                            <input type="file" id="ocrFileInput" accept="image/*,.pdf" style="display:none;">
+                            <button class="action-btn-sec" id="simUploadBtn" type="button">📁 Выбрать файл для распознавания</button>
+                            <span id="ocrStatus" class="ocr-status-text"></span>
+                        </div>
+                    </div>
                 </div>
             </section>
         </main>
@@ -75,11 +173,11 @@
                 <div class="journal-placeholder">Здесь фиксируются симптомы...</div>
             </div>
             <div class="journal-footer" id="nextStepContainer" style="display: none;">
-                <button class="transition-btn" id="goToRegistryBtn">К протоколам ➔</button>
+                <button class="transition-btn" id="goToRegistryBtn" type="button">К протоколу ЕМИАС ➔</button>
             </div>
         </aside>
     </div>
 
-    <script src="../static/js/app.js"></script>
+    <script src="../static/js/app.js?v=3"></script>
 </body>
 </html>

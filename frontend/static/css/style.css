@@ -5,6 +5,10 @@
     font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
+html, body {
+    height: 100%;
+}
+
 body {
     background-color: #31cc9c;
     color: #0b3d2c;
@@ -14,14 +18,159 @@ body {
     overflow: hidden;
 }
 
-/* Верхняя панель с названием проекта */
+/* ============================================================
+   АВТОРИЗАЦИЯ — ЖЁСТКИЙ LOCK
+   Пока body.auth-locked — вся шапка и приложение скрыты,
+   оверлей растянут на весь экран.
+   ============================================================ */
+body.auth-locked .top-header,
+body.auth-locked .app-container {
+    display: none !important;
+}
+
+body.auth-locked .auth-overlay {
+    display: flex !important;
+}
+
+body:not(.auth-locked) .auth-overlay {
+    display: none !important;
+}
+
+/* Сам оверлей (критичные стили дублируют inline) */
+.auth-overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: linear-gradient(135deg, #0f9e77 0%, #31cc9c 100%);
+}
+
+.auth-card {
+    background: #ffffff;
+    width: 100%;
+    max-width: 440px;
+    max-height: 92vh;
+    overflow-y: auto;
+    padding: 30px 30px 26px;
+    border-radius: 16px;
+    box-shadow: 0 20px 60px rgba(11, 61, 44, 0.28);
+    border-top: 6px solid #176da5;
+}
+
+.auth-logo {
+    font-size: 30px;
+    font-weight: bold;
+    color: #0f9e77;
+    text-align: center;
+    letter-spacing: 0.5px;
+    line-height: 1.1;
+}
+
+.auth-subtitle {
+    text-align: center;
+    color: #4a6b5e;
+    margin: 6px 0 18px;
+    font-size: 13.5px;
+}
+
+.auth-form {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.auth-label {
+    font-size: 13px;
+    font-weight: 600;
+    color: #235342;
+    margin-top: 8px;
+}
+
+.auth-form input[type="text"],
+.auth-form input[type="email"],
+.auth-form input[type="file"] {
+    padding: 11px 13px;
+    border: 1.5px solid #cfe9df;
+    border-radius: 10px;
+    font-size: 14px;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    background: #f8fdfb;
+    color: #0b3d2c;
+}
+
+.auth-form input[type="text"]:focus,
+.auth-form input[type="email"]:focus {
+    border-color: #176da5;
+    box-shadow: 0 0 0 3px rgba(23, 109, 165, 0.15);
+}
+
+.consent-plate {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    margin-top: 14px;
+    padding: 12px 14px;
+    background: #e8f7f1;
+    border: 1.5px dashed #1a8263;
+    border-radius: 10px;
+    font-size: 12.5px;
+    line-height: 1.45;
+    color: #235342;
+    cursor: pointer;
+    user-select: none;
+}
+
+.consent-plate input[type="checkbox"] {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+    accent-color: #176da5;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.auth-submit {
+    margin-top: 18px;
+    background: #176da5;
+    color: #fff;
+    border: none;
+    padding: 13px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.auth-submit:hover:not(:disabled) { background: #145f88; }
+.auth-submit:active:not(:disabled) { background: #0e4869; }
+.auth-submit:disabled { opacity: 0.6; cursor: wait; }
+
+.auth-error {
+    color: #b3261e;
+    font-size: 13px;
+    min-height: 18px;
+    text-align: center;
+    margin-top: 6px;
+}
+
+/* ============================================================
+   ВЕРХНЯЯ ПАНЕЛЬ
+   ============================================================ */
 .top-header {
     height: 15%;
+    min-height: 90px;
     background-color: #0f9e77;
     display: flex;
     align-items: center;
     padding-left: 20px;
+    padding-right: 20px;
     border-bottom: 2px solid rgba(255, 255, 255, 0.2);
+    justify-content: space-between;
+    flex-shrink: 0;
 }
 
 .top-header h1 {
@@ -29,17 +178,47 @@ body {
     color: #ffffff;
     font-weight: bold;
     letter-spacing: 0.5px;
-    margin-left: 3%
+    margin-left: 3%;
 }
 
-/* Общий контейнер */
+.triage-status-badge {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: rgba(255,255,255,0.92);
+    padding: 10px 20px;
+    border-radius: 30px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #0b3d2c;
+    margin-right: 10px;
+}
+
+.status-dot {
+    width: 12px;
+    height: 12px;
+    border-radius: 50%;
+    background: #2e7d32;
+    box-shadow: 0 0 8px rgba(46, 125, 50, 0.9);
+}
+.triage-green  .status-dot { background: #2e7d32; box-shadow: 0 0 8px rgba(46,125,50,0.9); }
+.triage-yellow .status-dot { background: #f9a825; box-shadow: 0 0 8px rgba(249,168,37,0.9); }
+.triage-red    .status-dot { background: #c62828; box-shadow: 0 0 8px rgba(198,40,40,0.9); }
+
+/* ============================================================
+   ОБЩИЙ КОНТЕЙНЕР
+   ============================================================ */
 .app-container {
     display: flex;
     flex: 1;
     background-color: #d9f3e8;
+    overflow: hidden;
+    min-height: 0;
 }
 
-/* Левая панель */
+/* ============================================================
+   ЛЕВАЯ ПАНЕЛЬ
+   ============================================================ */
 .left-sidebar {
     width: 25%;
     background-color: #47e1a7;
@@ -48,6 +227,8 @@ body {
     flex-direction: column;
     border-right: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 0 0 0 10px;
+    overflow-y: auto;
+    flex-shrink: 0;
 }
 
 .user-profile {
@@ -55,22 +236,59 @@ body {
     flex-direction: column;
     align-items: center;
     text-align: center;
-    margin-bottom: 25px;
+    margin-bottom: 22px;
 }
 
+/* Круглый аватар: жёстко фиксируем форму и обрезку */
 .avatar-circle {
-    width: 200px;
-    height: 200px;
+    width: 180px;
+    height: 180px;
+    aspect-ratio: 1 / 1;
+    flex: 0 0 auto;
     border: 5px solid #176da5;
     border-radius: 50%;
-    margin-bottom: 10px;
+    margin-bottom: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 0;
+    box-shadow: 0 6px 18px rgba(11, 61, 44, 0.25);
+}
+
+.avatar-circle img {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center center;
+    border-radius: 50%;
 }
 
 .welcome-text {
-    font-size: 30px;
+    font-size: 20px;
     color: #ffffff;
-    line-height: 1.4;
+    line-height: 1.35;
+    word-break: break-word;
+    max-width: 100%;
 }
+.welcome-text b { display: inline-block; max-width: 100%; }
+
+.logout-link {
+    margin-top: 10px;
+    background: rgba(255,255,255,0.25);
+    color: #ffffff;
+    border: 1px solid rgba(255,255,255,0.55);
+    padding: 6px 14px;
+    border-radius: 10px;
+    font-size: 12px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.logout-link:hover { background: rgba(255,255,255,0.4); }
 
 .nav-menu {
     display: flex;
@@ -78,38 +296,28 @@ body {
     gap: 12px;
 }
 
-/* Кнопки меню (строго по цветам макета + скругление 10px) */
 .menu-btn {
     background-color: #176da5;
     color: #ffffff;
     border: none;
-    padding: 30px 16px;
+    padding: 26px 16px;
     border-radius: 10px;
     text-align: left;
-    font-size: 20px;
+    font-size: 18px;
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
+    line-height: 1.2;
 }
 
-.menu-btn:hover:not(:disabled) {
-    background-color: #145f88;
-}
+.menu-btn:hover:not(:disabled)  { background-color: #145f88; }
+.menu-btn:active:not(:disabled) { background-color: #0e4869; }
+.menu-btn.active                { background-color: #0f4c6e; }
+.menu-btn:disabled              { opacity: 0.4; cursor: not-allowed; }
 
-.menu-btn:active:not(:disabled) {
-    background-color: #0e4869;
-}
-
-.menu-btn.active {
-    background-color: #0f4c6e;
-}
-
-.menu-btn:disabled {
-    opacity: 0.4;
-    cursor: not-allowed;
-}
-
-/* Центральная область (чат) */
+/* ============================================================
+   ЦЕНТР
+   ============================================================ */
 .center-content {
     flex: 2;
     background-color: #94e1ca;
@@ -119,17 +327,19 @@ body {
     border-radius: 10px;
     margin: 10px;
     border: 2px solid rgba(255, 255, 255, 0.3);
+    overflow: hidden;
+    min-width: 0;
+    min-height: 0;
 }
 
 .app-section {
     display: none;
     flex-direction: column;
     height: 100%;
+    overflow: hidden;
+    min-height: 0;
 }
-
-.app-section.active-section {
-    display: flex;
-}
+.app-section.active-section { display: flex; }
 
 .chat-messages {
     flex: 1;
@@ -141,14 +351,16 @@ body {
     flex-direction: column;
     gap: 12px;
     border: 1px solid rgba(255, 255, 255, 0.5);
+    min-height: 0;
 }
 
-/* Сообщения и иконки скругление 10px, крупный шрифт */
 .message {
     padding: 14px 18px;
     border-radius: 10px;
     font-size: 15px;
     max-width: 75%;
+    word-wrap: break-word;
+    overflow-wrap: anywhere;
 }
 
 .ai-message {
@@ -179,64 +391,74 @@ body {
     cursor: pointer;
 }
 .btn-yes { background-color: #1a8263; color: #fff; }
-.btn-no { background-color: #d1d5db; color: #374151; }
+.btn-no  { background-color: #d1d5db; color: #374151; }
 
-/* Панель ввода */
 .chat-input-area {
     margin-top: 10px;
     background-color: #caf2e9;
-    padding: 12px 16px;
+    padding: 10px 14px;
     border-radius: 10px;
     display: flex;
-    gap: 10px;
+    gap: 8px;
     border: 1px solid rgba(255, 255, 255, 0.5);
+    align-items: center;
+    flex-wrap: wrap;
+    flex-shrink: 0;
 }
 
 .chat-input-area input {
     flex: 1;
+    min-width: 120px;
     background: transparent;
     border: none;
     outline: none;
     font-size: 15px;
     color: #0b3d2c;
+    padding: 6px;
 }
 
-.chat-input-area input::placeholder {
-    color: #4a6b5e;
-}
+.chat-input-area input::placeholder { color: #4a6b5e; }
 
 .chat-input-area button {
     background-color: #1a7bb0;
     color: #fff;
     border: none;
-    padding: 10px 20px;
+    padding: 10px 18px;
     border-radius: 10px;
     font-size: 14px;
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
 }
+
 .chat-input-area .finish-btn { background-color: #1e8e3e; }
-.chat-input-area .finish-btn:hover { background-color: #137333; }
+.chat-input-area .finish-btn:hover  { background-color: #137333; }
 .chat-input-area .finish-btn:active { background-color: #0d5c28; }
+
 .chat-input-area button:disabled { opacity: 0.5; cursor: not-allowed; }
+.chat-input-area button:hover:not(:disabled)  { background-color: #145f88; }
+.chat-input-area button:active:not(:disabled) { background-color: #0e4869; }
 
-.chat-input-area button:hover { background-color: #145f88; }
-.chat-input-area button:active { background-color: #0e4869; }
+.mic-btn {
+    background-color: #176da5 !important;
+    font-size: 16px;
+    padding: 10px 14px !important;
+}
 
-/* Правая панель (Журнал жалоб) */
+/* ============================================================
+   ПРАВАЯ ПАНЕЛЬ
+   ============================================================ */
 .right-sidebar {
-    width: 20%;
-
+    width: 22%;
     background-color: #94e1ca;
-    margin-top: 10px;
-    margin-bottom: 10px;
-    margin-right: 10px;
+    margin: 10px 10px 10px 0;
     padding: 20px;
     display: flex;
     flex-direction: column;
     border-left: 2px solid rgba(255, 255, 255, 0.2);
     border-radius: 10px;
+    overflow: hidden;
+    flex-shrink: 0;
 }
 
 .right-sidebar h3 {
@@ -252,6 +474,7 @@ body {
     flex-direction: column;
     gap: 10px;
     overflow-y: auto;
+    min-height: 0;
 }
 
 .journal-placeholder {
@@ -268,6 +491,7 @@ body {
     border-left: 4px solid #1a8263;
     font-size: 14px;
     color: #0b3d2c;
+    overflow-wrap: anywhere;
 }
 
 .transition-btn, .action-btn-main {
@@ -281,8 +505,9 @@ body {
     font-weight: bold;
     cursor: pointer;
     transition: background 0.2s;
+    margin-top: 10px;
 }
-.transition-btn:hover, .action-btn-main:hover { background-color: #145f88; }
+.transition-btn:hover, .action-btn-main:hover   { background-color: #145f88; }
 .transition-btn:active, .action-btn-main:active { background-color: #0e4869; }
 
 .download-btn {
@@ -292,19 +517,224 @@ body {
     text-align: center;
     text-decoration: none;
     background-color: #1e8e3e;
+    color: #fff;
+    padding: 12px;
+    border-radius: 10px;
+    font-weight: bold;
+    font-size: 14px;
+    transition: background 0.2s;
 }
-.download-btn:hover { background-color: #137333; }
+.download-btn:hover  { background-color: #137333; }
 .download-btn:active { background-color: #0d5c28; }
 
-/* Дополнительные карточки */
+/* ============================================================
+   КАРТОЧКИ РАЗДЕЛОВ
+   ============================================================ */
 .section-card {
     background: #bbf3e2;
-    padding: 30px;
+    padding: 22px 26px;
     border-radius: 10px;
     border: 1px solid rgba(255,255,255,0.5);
+    overflow-y: auto;
+    height: 100%;
+    min-height: 0;
 }
+
+.med-card { display: flex; flex-direction: column; gap: 10px; }
+
 .section-card h2 { margin-bottom: 12px; color: #0b3d2c; font-size: 20px; }
-.section-card p { font-size: 15px; color: #235342; margin-bottom: 20px; }
-.ticket-preview { background: #ffffff; padding: 14px; border-radius: 10px; margin-bottom: 20px; font-size: 14px; color: #0b3d2c; }
-.action-btn-sec { background: #e5e7eb; color: #374151; border: none; padding: 12px 20px; border-radius: 10px; font-size: 14px; font-weight: bold; cursor: pointer; }
-.med-schedule-list { list-style: none; margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; font-size: 15px; }
+.section-card h3 { color: #0b3d2c; font-size: 16px; margin-bottom: 8px; }
+.section-card p  { font-size: 15px; color: #235342; margin-bottom: 18px; }
+
+.soap-container {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+
+.soap-block {
+    background: #ffffff;
+    padding: 14px 16px;
+    border-radius: 10px;
+    font-size: 14px;
+    color: #0b3d2c;
+    line-height: 1.5;
+    border-left: 4px solid #176da5;
+    overflow-wrap: anywhere;
+}
+
+.ticket-preview {
+    background: #ffffff;
+    padding: 14px;
+    border-radius: 10px;
+    margin-bottom: 16px;
+    font-size: 14px;
+    color: #0b3d2c;
+    overflow-wrap: anywhere;
+}
+.ticket-preview:empty { display: none; }
+
+.action-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 18px;
+}
+.action-row > * { flex: 1 1 220px; }
+
+.action-btn-sec {
+    background: #e5e7eb;
+    color: #374151;
+    border: none;
+    padding: 12px 20px;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.action-btn-sec:hover { background: #d1d5db; }
+
+/* ============================================================
+   EMAIL
+   ============================================================ */
+.email-send-row {
+    background: #e8f7f1;
+    border: 1.5px dashed #1a8263;
+    border-radius: 10px;
+    padding: 14px;
+}
+.email-label {
+    display: block;
+    font-size: 13px;
+    font-weight: 600;
+    color: #235342;
+    margin-bottom: 8px;
+}
+.email-inline {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.email-inline input {
+    flex: 1 1 220px;
+    padding: 11px 13px;
+    border-radius: 10px;
+    border: 1.5px solid #cfe9df;
+    font-size: 14px;
+    outline: none;
+    background: #ffffff;
+    color: #0b3d2c;
+}
+.email-inline input:focus {
+    border-color: #176da5;
+    box-shadow: 0 0 0 3px rgba(23,109,165,0.15);
+}
+.email-inline button { flex: 0 0 auto; }
+.email-status {
+    margin-top: 10px;
+    font-size: 13px;
+    min-height: 18px;
+    color: #235342;
+}
+
+/* ============================================================
+   МЕД БЛОКИ
+   ============================================================ */
+.med-block {
+    background: #e8f7f1;
+    border-radius: 10px;
+    padding: 14px 16px;
+    margin-bottom: 12px;
+}
+
+.med-schedule-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    font-size: 14px;
+    margin-bottom: 10px;
+    color: #0b3d2c;
+}
+
+.med-schedule-list li {
+    background: #ffffff;
+    padding: 10px 12px;
+    border-radius: 8px;
+    border-left: 4px solid #1a8263;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    overflow-wrap: anywhere;
+}
+
+.med-empty {
+    color: #4a6b5e !important;
+    font-style: italic;
+    border-left: 4px solid #cfe9df !important;
+    background: transparent !important;
+}
+
+.mini-del {
+    margin-left: auto;
+    background: #f3d5d5;
+    color: #b3261e;
+    border: none;
+    border-radius: 6px;
+    padding: 3px 9px;
+    font-size: 12px;
+    cursor: pointer;
+    font-weight: bold;
+}
+.mini-del:hover { background: #eab8b8; }
+
+.inline-form {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+.inline-form input {
+    flex: 1 1 150px;
+    padding: 9px 12px;
+    border-radius: 8px;
+    border: 1.5px solid #cfe9df;
+    font-size: 13px;
+    outline: none;
+    background: #ffffff;
+    color: #0b3d2c;
+}
+.inline-form input:focus {
+    border-color: #176da5;
+    box-shadow: 0 0 0 3px rgba(23,109,165,0.15);
+}
+.inline-form button {
+    background: #176da5;
+    color: #fff;
+    border: none;
+    padding: 9px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+.inline-form button:hover { background: #145f88; }
+
+/* ============================================================
+   OCR
+   ============================================================ */
+.ocr-upload-box {
+    background: #ffffff;
+    border-radius: 10px;
+    padding: 16px;
+    border: 1.5px dashed #1a7bb0;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+}
+.ocr-upload-box p { margin: 0; font-size: 14px; color: #0b3d2c; }
+.ocr-status-text  { font-size: 13px; color: #1a8263; }
